@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CV OUTLINE</title>
+<style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+@font-face {
+  font-family: "ABC Favorit";
+  src: url("../fonts/ABCFavorit-Regular-Trial.otf") format("opentype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "ABC Gaisyr";
+  src: url("../fonts/ABCGaisyrMono-Light-Trial.otf") format("opentype");
+  font-display: swap;
+}
+
+:root{
+  --bg:#ffffff;
+  --text:#1f130d;
+  --text-dim: rgba(31,19,13,.45);
+  --text-faint: rgba(31,19,13,.22);
+}
+
+body {
+  background: var(--bg);
+  font-family: "ABC Favorit", monospace;
+  font-size: 12px; color: var(--text);
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+#topbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 14px; flex-shrink: 0;
+}
+#title { font-size: 11px; letter-spacing: .04em; color: var(--text-dim); margin-right: 8px; font-family:"ABC Gaisyr", monospace; }
+#title b { color: var(--text); font-weight: 400; }
+.b {
+  font-family: "ABC Favorit", monospace;
+  font-size: 12px; letter-spacing: .02em; padding: 3px 10px;
+  border: 1px solid var(--text-dim); background: none; color: var(--text);
+  cursor: pointer; transition: border-color .15s, opacity .15s; white-space: nowrap;
+}
+.b:hover { opacity: .7; }
+.b.on  { border-color: var(--text); opacity: 1; }
+.b.go  { color: var(--text); }
+.b.go:hover { opacity: .7; }
+.b:disabled { opacity: .25; pointer-events: none; }
+
+#main {
+  flex: 1; display: grid; grid-template-columns: 1fr 240px;
+  min-height: 0; overflow: hidden;
+}
+#left {
+  position: relative; overflow: hidden; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+#drop {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 5;
+}
+#drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+#drop-hint { color: var(--text-dim); text-align: center; pointer-events: none;
+  font-size: 12px; letter-spacing: .04em; line-height: 1.2; }
+#drop.drag #drop-hint { color: var(--text); }
+#drop.gone { pointer-events: none; opacity: 0; }
+#c { display: block; position: relative; z-index: 1; }
+
+#right {
+  display: flex; flex-direction: column;
+  overflow: hidden; background: var(--bg); border-left: 1px solid var(--text-faint);
+  width: 240px; flex-shrink: 0;
+}
+#right-placeholder{
+  padding: 10px 16px;
+  font-size: 11px;
+  letter-spacing: .02em;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+body.stage-image #right-placeholder{ display: none; }
+
+#right-inner {
+  flex: 1; display: flex; flex-direction: column;
+  padding: 8px 16px; gap: 14px;
+  overflow: hidden;
+}
+.group-basic, .group-advanced{ display: none; opacity: 0; transition: opacity .35s; }
+body.stage-image .group-basic{ display: block; opacity: 1; }
+body.stage-results .group-advanced{ display: block; opacity: 1; }
+
+.section { margin-bottom: 10px; }
+.stitle { font-size: 10px; letter-spacing: .04em; color: var(--text-dim); margin-bottom: 8px; }
+.slider-row { display: flex; align-items: center; gap: 8px; }
+.slabel { font-size: 10px; color: var(--text-dim); letter-spacing: .04em; min-width: 46px; }
+input[type=range] {
+  -webkit-appearance: none; flex: 1; height: 1px;
+  background: var(--text-faint); cursor: pointer; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 8px; height: 8px;
+  background: var(--text); border-radius: 50%;
+}
+.num { font-size: 10px; color: var(--text-dim); min-width: 26px; text-align: right; }
+.btn-group { display: flex; flex-direction: row; gap: 12px; }
+.btn-group .b { text-align: left; width: auto; font-size: 12px; }
+#export-row {
+  padding: 10px 16px; display: none; opacity: 0; gap: 6px;
+  flex-shrink: 0; border-top: 1px solid var(--text-faint);
+  transition: opacity .35s;
+}
+body.stage-results #export-row{ display: flex; opacity: 1; }
+#export-row .b { flex: 1; text-align: center; }
+
+#prog {
+  display: none; position: absolute; inset: 0;
+  background: rgba(43,26,9,.93); z-index: 20;
+  align-items: center; justify-content: center; flex-direction: column; gap: 10px;
+}
+#prog.show { display: flex; }
+#ptxt { font-size: 10px; color: var(--text-dim); letter-spacing: .1em; }
+#ptrack { width: 130px; height: 1px; background: var(--text-faint); }
+#pfill  { height: 1px; background: var(--text); width: 0; transition: width .2s; }
+
+#server-warn {
+  display: none; position: absolute; inset: 0; z-index: 30;
+  background: var(--bg); align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px;
+}
+#server-warn.show { display: flex; }
+#server-warn p { font-size: 11px; color: var(--text-dim); letter-spacing: .06em; line-height: 2; text-align: center; }
+#server-warn code { font-size: 12px; color: var(--text); background: rgba(31,19,13,.1); padding: 6px 14px; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span id="title"><b>CV OUTLINE</b> — <span id="fname">no file</span></span>
+  <button class="b" id="btn-import">import</button>
+  <button class="b go" id="btn-run" disabled>run</button>
+  <input type="file" accept="image/*" id="file-input" style="display:none">
+</div>
+
+<div id="main">
+  <div id="left">
+    <div id="drop">
+      <input type="file" accept="image/*" id="file-input-drop">
+      <div id="drop-hint">drop image here<br>or use import</div>
+    </div>
+    <canvas id="c"></canvas>
+    <div id="prog">
+      <div id="ptxt">running…</div>
+      <div id="ptrack"><div id="pfill"></div></div>
+    </div>
+    <div id="server-warn">
+      <p>server not running<br>open a terminal and run:</p>
+      <code>python3 server.py</code>
+      <button class="b go" id="btn-retry" style="margin-top:8px">retry</button>
+    </div>
+  </div>
+
+  <div id="right">
+    <div id="right-placeholder">load an image to begin —<br>controls appear here once<br>there's something to control.</div>
+    <div id="right-inner">
+
+    <div class="section group-basic">
+      <div class="stitle">detection</div>
+      <div class="slider-row">
+        <span class="slabel">min area</span>
+        <input type="range" id="s-letter" min="5" max="500" step="5" value="20">
+        <span class="num" id="v-letter">20</span>
+      </div>
+    </div>
+
+    <div class="section group-basic">
+      <div class="stitle">stroke</div>
+      <div class="btn-group">
+        <button class="b on" data-color="white">white on black</button>
+        <button class="b"    data-color="black">black on white</button>
+      </div>
+    </div>
+
+    <div class="section group-advanced">
+      <div class="stitle">transform</div>
+      <div class="slider-row">
+        <span class="slabel">rotation</span>
+        <input type="range" id="s-rot" min="0" max="100" value="0">
+        <span class="num" id="v-rot">0</span>
+      </div>
+      <div class="slider-row" style="margin-top:6px;">
+        <span class="slabel">scale</span>
+        <input type="range" id="s-scale" min="0" max="100" value="0">
+        <span class="num" id="v-scale">0</span>
+      </div>
+      <div class="slider-row" style="margin-top:6px;">
+        <span class="slabel">shift</span>
+        <input type="range" id="s-shift" min="0" max="100" value="0">
+        <span class="num" id="v-shift">0</span>
+      </div>
+      <div class="slider-row" style="margin-top:6px;">
+        <span class="slabel">break</span>
+        <input type="range" id="s-loops" min="0" max="100" value="0">
+        <span class="num" id="v-loops">0</span>
+      </div>
+    </div>
+
+    </div><!-- /right-inner -->
+    <div id="export-row">
+      <button class="b" id="btn-svg" disabled>↓ svg</button>
+      <button class="b" id="btn-png" disabled>↓ png</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5050/layer';
+
+const S = {
+  imageB64: null, imgW: 0, imgH: 0,
+  letter: 20,
+  rot: 0, scale: 0, shift: 0, loops: 0,
+  colorMode: 'white',
+  paths: [],
+};
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const left   = document.getElementById('left');
+
+// ── file ──────────────────────────────────────────────────
+document.getElementById('btn-import').addEventListener('click', () =>
+  document.getElementById('file-input').click()
+);
+['file-input','file-input-drop'].forEach(id => {
+  document.getElementById(id).addEventListener('change', e => {
+    if (e.target.files[0]) loadImg(e.target.files[0]);
+  });
+});
+const drop = document.getElementById('drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('drag');
+  if (e.dataTransfer.files[0]) loadImg(e.dataTransfer.files[0]);
+});
+
+function loadImg(f) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    S.imageB64 = ev.target.result;
+    const img = new Image();
+    img.onload = () => { S.imgW = img.naturalWidth; S.imgH = img.naturalHeight; };
+    img.src = S.imageB64;
+    document.getElementById('fname').textContent = f.name;
+    document.getElementById('btn-run').disabled = false;
+    document.getElementById('btn-svg').disabled = true;
+    document.getElementById('btn-png').disabled = true;
+    S.paths = [];
+    drop.classList.add('gone');
+    document.body.classList.add('stage-image');
+    document.body.classList.remove('stage-results');
+    fit();
+    ctx.fillStyle = S.colorMode==='white' ? '#111' : '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  };
+  reader.readAsDataURL(f);
+}
+
+function fit() {
+  if (!S.imgW) return;
+  const pad = 32;
+  const cw = left.clientWidth - pad, ch = left.clientHeight - pad;
+  const iAR = S.imgW / S.imgH;
+  let dw, dh;
+  if (iAR > cw/ch) { dw=cw; dh=cw/iAR; } else { dh=ch; dw=ch*iAR; }
+
+  // backing resolution follows the source image (capped for performance),
+  // CSS size keeps it fitting the panel on screen
+  const maxDim = 2400;
+  const resScale = Math.min(1, maxDim / Math.max(S.imgW, S.imgH));
+  canvas.width  = Math.round(S.imgW * resScale);
+  canvas.height = Math.round(S.imgH * resScale);
+  canvas.style.width  = Math.round(dw) + 'px';
+  canvas.style.height = Math.round(dh) + 'px';
+}
+window.addEventListener('resize', () => { if (S.paths.length) { fit(); redraw(); } });
+
+// ── run ───────────────────────────────────────────────────
+document.getElementById('btn-run').addEventListener('click', runOutline);
+
+async function runOutline() {
+  if (!S.imageB64) return;
+  prog(true, 'computing contours…');
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ image: S.imageB64, layer: 'outline', letter: S.letter })
+    });
+    if (!res.ok) throw new Error('server ' + res.status);
+    const data = await res.json();
+    S.paths = data.paths || [];
+    console.log("paths:", S.paths.length, "imgW:", S.imgW, "imgH:", S.imgH, "canvas:", canvas.width, canvas.height);
+    document.getElementById('server-warn').classList.remove('show');
+    document.getElementById('btn-svg').disabled = false;
+    document.getElementById('btn-png').disabled = false;
+    document.body.classList.add('stage-results');
+  } catch(e) {
+    prog(false);
+    document.getElementById('server-warn').classList.add('show');
+    return;
+  }
+  prog(false);
+  if (!S.imgW || !S.imgH) {
+    const img = new Image();
+    img.onload = () => { S.imgW = img.naturalWidth; S.imgH = img.naturalHeight; fit(); redraw(); };
+    img.src = S.imageB64;
+  } else {
+    fit(); redraw();
+  }
+}
+
+// ── draw ──────────────────────────────────────────────────
+function redraw() {
+  fit();
+  const W = canvas.width, H = canvas.height;
+  const bg = S.colorMode==='white' ? '#111' : '#fff';
+  const fg = S.colorMode==='white' ? '#fff' : '#000';
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  if (!S.paths.length) return;
+
+  const scX  = W / S.imgW, scY = H / S.imgH;
+  const tR   = S.rot   / 100;
+  const tSc  = S.scale / 100;
+  const tSh  = S.shift / 100;
+  const bAmt = S.loops / 100;
+  const n    = S.paths.length;
+
+  ctx.strokeStyle = fg;
+
+  S.paths.forEach((p, i) => {
+    const cx = p.cx * scX, cy = p.cy * scY;
+    const sN = i / Math.max(n - 1, 1);
+
+    // per-shape transforms driven by OCR data
+    const rot = (1 - p.areaN) * tR * Math.PI * 0.55;
+    const sc  = tSc === 0 ? 1 : 0.3 + p.areaN * (0.7 + tSc * 1.3);
+    const md  = Math.min(W, H) * 0.15 * tSh;
+    const dx  = Math.sin(sN * Math.PI * 2) * md;
+    const dy  = (sN - 0.5) * md * 1.4;
+
+    // dissolution: each point pushed outward from shape centroid
+    // factor grows from 0 (intact) to 3 (fully dissolved)
+    const dissolveFactor = bAmt * 3.0;
+
+    ctx.save();
+    ctx.translate(cx + dx, cy + dy);
+    ctx.rotate(rot);
+    ctx.scale(sc, sc);
+    ctx.lineWidth = 0.7 + p.areaN * 0.6;
+
+    ctx.beginPath();
+    p.pts.forEach(([px, py], j) => {
+      const spx = px * scX, spy = py * scY;
+      // push each point outward from centroid (0,0 in local space)
+      const fx = spx + spx * dissolveFactor;
+      const fy = spy + spy * dissolveFactor;
+      if (j === 0) ctx.moveTo(fx, fy);
+      else         ctx.lineTo(fx, fy);
+    });
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+// ── color ─────────────────────────────────────────────────
+document.querySelectorAll('[data-color]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-color]').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    S.colorMode = btn.dataset.color;
+    redraw();
+  });
+});
+
+// ── detection sliders → debounce re-run ───────────────────
+let debounce = null;
+function debouncedRun() {
+  clearTimeout(debounce);
+  debounce = setTimeout(() => { if (S.imageB64) runOutline(); }, 450);
+}
+[['letter','letter']].forEach(([id,k]) => {
+  document.getElementById('s-'+id).addEventListener('input', e => {
+    S[k] = +e.target.value;
+    document.getElementById('v-'+id).textContent = e.target.value;
+    debouncedRun();
+  });
+});
+
+// ── transform sliders → instant redraw ────────────────────
+['rot','scale','shift','loops'].forEach(k => {
+  document.getElementById('s-'+k).addEventListener('input', e => {
+    S[k] = +e.target.value;
+    document.getElementById('v-'+k).textContent = e.target.value;
+    if (S.paths.length) redraw();
+  });
+});
+
+// ── export PNG ────────────────────────────────────────────
+document.getElementById('btn-png').addEventListener('click', () => {
+  canvas.toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = 'cv-outline.png'; a.click();
+  });
+});
+
+// ── export SVG ────────────────────────────────────────────
+document.getElementById('btn-svg').addEventListener('click', () => {
+  if (!S.paths.length || !S.imgW || !S.imgH) return;
+  const W = S.imgW, H = S.imgH;
+  const bg = S.colorMode==='white' ? '#111' : '#fff';
+  const fg = S.colorMode==='white' ? '#fff' : '#000';
+
+  const tR   = S.rot   / 100;
+  const tSc  = S.scale / 100;
+  const tSh  = S.shift / 100;
+  const bAmt = S.loops / 100;
+  const dissolveFactor = bAmt * 3.0;
+  const n = S.paths.length;
+
+  const groups = S.paths.map((p, i) => {
+    const sN  = i / Math.max(n - 1, 1);
+    const rot = (1 - p.areaN) * tR * Math.PI * 0.55;
+    const sc  = tSc === 0 ? 1 : 0.3 + p.areaN * (0.7 + tSc * 1.3);
+    const md  = Math.min(W, H) * 0.15 * tSh;
+    const dx  = Math.sin(sN * Math.PI * 2) * md;
+    const dy  = (sN - 0.5) * md * 1.4;
+    const deg = (rot * 180 / Math.PI).toFixed(2);
+    const sw  = (0.7 + p.areaN * 0.6).toFixed(2);
+
+    if (!p.pts || p.pts.length < 2) return '';
+    const d = p.pts.map(([px,py], j) => {
+      const fx = (px + px*dissolveFactor).toFixed(1);
+      const fy = (py + py*dissolveFactor).toFixed(1);
+      return (j===0?'M':'L')+fx+' '+fy;
+    }).join(' ') + ' Z';
+
+    const tx = `translate(${(p.cx+dx).toFixed(1)},${(p.cy+dy).toFixed(1)}) rotate(${deg}) scale(${sc.toFixed(3)})`;
+    return `<g transform="${tx}"><path d="${d}" fill="none" stroke="${fg}" stroke-width="${sw}"/></g>`;
+  }).filter(Boolean).join('\n');
+
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${bg}"/>\n${groups}\n</svg>`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+  a.download='cv-outline.svg'; a.click();
+});
+
+document.getElementById('btn-retry').addEventListener('click', () => {
+  document.getElementById('server-warn').classList.remove('show');
+  if (S.imageB64) runOutline();
+});
+
+function prog(show, txt) {
+  document.getElementById('prog').classList.toggle('show', show);
+  if (txt) document.getElementById('ptxt').textContent = txt;
+}
+</script>
+</body>
+</html>

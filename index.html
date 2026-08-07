@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reading Machines</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .readme-link{
+      position:fixed;
+      top:18px;
+      left:50%;
+      transform:translateX(-50%);
+      font-size:13px;
+      letter-spacing:.2em;
+      color:#1f130d;
+      opacity:1;
+      text-decoration:none;
+      z-index:100;
+      font-family:"ABC Gaisyr", monospace;
+      padding:7px 18px;
+      border:1px solid #1f130d;
+      border-radius:20px;
+      transition:background .2s, color .2s;
+    }
+    .readme-link:hover{
+      background:#2bff00;
+      color:#1f130d;
+    }
+    .docs-link{
+      position:fixed;
+      bottom:18px;
+      left:50%;
+      transform:translateX(-50%);
+      font-size:13px;
+      letter-spacing:.2em;
+      color:#1f130d;
+      opacity:1;
+      text-decoration:none;
+      z-index:100;
+      font-family:"ABC Gaisyr", monospace;
+      padding:7px 18px;
+      border:1px solid #1f130d;
+      border-radius:20px;
+      transition:background .2s, color .2s;
+    }
+    .docs-link:hover{
+      background:#2bff00;
+      color:#1f130d;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="landing">
+
+    <section class="panel">
+      <div class="viewport">
+        <div class="marquee" id="human">
+          <div class="content"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="viewport">
+        <div class="marquee" id="machine">
+          <div class="content"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <a href="tool-space.html?from=index" class="readme-link">ENTER</a>
+  <a href="https://melinavaldata00.github.io/RMDocumentation/" class="docs-link" target="_blank" rel="noopener">DOCUMENTATION</a>
+
+  <script src="script.js"></script>
+</body>
+</html>

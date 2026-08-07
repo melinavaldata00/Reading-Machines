@@ -1,0 +1,243 @@
+/* ------------------------------------------------ */
+/* FONT */
+/* ------------------------------------------------ */
+
+@font-face {
+    font-family: "ABC Gaisyr";
+    src: url("./fonts/ABCGaisyrMono-Light-Trial.otf") format("opentype");
+}
+
+@font-face {
+    font-family: "ABC Favorit";
+    src: url("./fonts/ABCFavorit-Regular-Trial.otf") format("opentype");
+    font-display: swap;
+}
+
+:root{
+    --bg:#ffffff;
+    --text:#1f130d;
+}
+
+/* ------------------------------------------------ */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html,
+body{
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"ABC Favorit", monospace;
+}
+
+/* ------------------------------------------------ */
+
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+/* ------------------------------------------------ */
+
+.landing{
+    width:100vw;
+    height:100vh;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:48px;
+    padding:32px;
+    transition:.5s;
+}
+
+/* ------------------------------------------------ */
+
+.panel{
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+}
+
+/* ------------------------------------------------ */
+
+.viewport{
+    position:relative;
+    flex:1;
+    overflow:hidden;
+}
+
+/* ------------------------------------------------ */
+
+.marquee{
+    position:absolute;
+    width:100%;
+    top:100%;
+    left:0;
+    will-change:transform;
+}
+
+/* ------------------------------------------------ */
+
+.content{
+    display:flex;
+    flex-direction:column;
+    gap:0;
+}
+
+/* ------------------------------------------------ */
+
+.content p{
+    font-size:38px;
+    font-weight:normal;
+    line-height:1.15;
+}
+
+/* ------------------------------------------------ */
+/* VIEW MODES */
+/* ------------------------------------------------ */
+
+body.show-human .panel:last-child .viewport{
+    visibility:hidden;
+}
+
+body.show-machine .panel:first-child .viewport{
+    visibility:hidden;
+}
+
+/* ------------------------------------------------ */
+/* COLUMN TOGGLE */
+/* ------------------------------------------------ */
+
+.col-toggle{
+    position:fixed;
+    top:16px;
+
+    width:8px;
+    height:8px;
+    border-radius:50%;
+
+    background:none;
+    border:1px solid var(--text);
+
+    opacity:.25;
+
+    cursor:pointer;
+    padding:0;
+
+    transition:opacity .3s, background .3s;
+
+    z-index:100;
+}
+
+.col-toggle.on{
+    background:var(--text);
+    opacity:.55;
+}
+
+.col-toggle:hover{
+    opacity:1;
+}
+
+.toggle-left{ left:16px; }
+.toggle-right{ right:16px; }
+
+/* ------------------------------------------------ */
+/* STATE INDICATOR */
+/* ------------------------------------------------ */
+
+.state{
+    position:fixed;
+    right:32px;
+    bottom:24px;
+    font-size:13px;
+    opacity:.45;
+}
+
+/* ------------------------------------------------ */
+/* WORD / STATE LAYERS */
+/* ------------------------------------------------ */
+
+.word{
+    position:relative;
+}
+
+/* individual letters — same mechanism as tool-space's .letter: each one */
+/* carries its own random dx/dy/rot (set in script.js), scaled down to    */
+/* zero when its line is centered on screen and dialed up the further it   */
+/* drifts away, so it reads clean up close and dissolves at the edges.      */
+
+.letter{
+    display:inline-block;
+    will-change:transform, opacity;
+}
+
+/* STATE 2–5 apply only to the machine (right) column — the human       */
+/* column is meant to read as plain, untouched text throughout; the       */
+/* bounding boxes / baseline grid / reading order / OCR confidence are     */
+/* the machine's way of reading, not the human's.                          */
+
+/* STATE 2 — bounding boxes. opacity tied to --scatter (set per line in    */
+/* script.js) so the boxes stay invisible on the clean, in-focus reading    */
+/* band and only appear on lines that are already scattering apart — they  */
+/* no longer clutter up text that's meant to stay legible.                  */
+
+body.state-2 #machine .word{
+    outline:1px solid rgba(31,19,13, var(--scatter, 1));
+    outline-offset:3px;
+}
+
+/* STATE 3 — baseline grid */
+
+body.state-3 #machine .content p{
+    border-bottom:1px solid var(--text);
+    padding-bottom:6px;
+}
+
+/* STATE 4 — reading order */
+
+body.state-4 #machine .word::before{
+    content: attr(data-idx);
+    position:absolute;
+    top:-1.1em;
+    left:0;
+    font-size:9px;
+    opacity:.6;
+}
+
+/* STATE 5 — OCR confidence */
+
+body.state-5 #machine .word{
+    opacity: calc(0.25 + (var(--conf) / 100) * 0.75);
+    color: color-mix(in srgb, var(--text) calc(var(--conf) * 1%), red);
+}
+
+/* ------------------------------------------------ */
+/* CONFIDENCE LABEL — small OCR-confidence % above every word on the     */
+/* machine column, always on (not gated by STATE). state-4 overrides      */
+/* this same ::before with the reading-order index when active.          */
+/* ------------------------------------------------ */
+
+#machine .word::before{
+    content: attr(data-conf) "%";
+    position:absolute;
+    top:-1.1em;
+    left:0;
+    font-size:9px;
+    letter-spacing:.02em;
+    opacity:.45;
+    pointer-events:none;
+}
+
+/* ------------------------------------------------ */
+/* CLICK-THROUGH — both columns lead into tool-space */
+/* ------------------------------------------------ */
+
+.panel{
+    cursor:pointer;
+}

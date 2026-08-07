@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUBLICATION</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+@font-face {
+  font-family: "ABC Gaisyr";
+  src: url("../fonts/ABCGaisyrMono-Light-Trial.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "ABC Favorit";
+  src: url("../fonts/ABCFavorit-Regular-Trial.otf") format("opentype");
+  font-display: swap;
+}
+
+:root{
+  --bg:#ffffff;
+  --text:#1f130d;
+  --text-dim: rgba(31,19,13,.45);
+  --text-faint: rgba(31,19,13,.22);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "ABC Favorit", monospace;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------ */
+/* APP — sidebar (logo / about / chapter list) on the left, the    */
+/* reading stage taking up the rest. modelled after a reference      */
+/* layout: the chapter list doubles as the book's navigation, and    */
+/* the main area always shows one full spread at a time.              */
+/* ------------------------------------------------------------ */
+
+#app{
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+#sidebar{
+  flex: 0 0 270px;
+  width: 270px;
+  height: 100%;
+  overflow-y: auto;
+  border-right: 1px solid var(--text-faint);
+  padding: 26px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+#sidebar-brand{ display: flex; flex-direction: column; gap: 4px; }
+#sidebar-brand .brand-title{ font-size: 19px; letter-spacing: .04em; font-family: "ABC Gaisyr", monospace; }
+#sidebar-brand .brand-tag{ font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); font-family: "ABC Gaisyr", monospace; }
+
+.sidebar-section{ border-top: 1px solid var(--text-faint); padding-top: 16px; }
+.sidebar-label{
+  display: block;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  font-family: "ABC Gaisyr", monospace;
+}
+#sidebar-about p{ font-size: 12px; line-height: 1.55; color: var(--text); opacity: .85; margin-bottom: 12px; }
+#sidebar-about p:last-child{ margin-bottom: 0; }
+
+#chapter-nav{ display: flex; flex-direction: column; }
+.chapter-item{
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--text-faint);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: .03em;
+  padding: 13px 0;
+  cursor: pointer;
+  opacity: .55;
+  transition: opacity .2s;
+}
+.chapter-item .chapter-num{ color: var(--text-dim); font-size: 12px; flex: 0 0 auto; font-family: "ABC Gaisyr", monospace; }
+.chapter-item:hover{ opacity: .85; }
+.chapter-item.active{ opacity: 1; }
+.chapter-item .chapter-label{ display: inline-block; transition: transform .2s ease; }
+@keyframes chapter-label-slide{ 0%{ transform: translateX(0); } 100%{ transform: translateX(14px); } }
+.chapter-item:hover .chapter-label{ animation: chapter-label-slide .7s ease-in-out infinite alternate; }
+
+#sidebar-foot{ margin-top: auto; padding-top: 16px; border-top: 1px solid var(--text-faint); }
+
+#back-link{
+  display: inline-block;
+  background: none;
+  border: 1px solid var(--text-dim);
+  border-radius: 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: .08em;
+  padding: 6px 10px;
+  text-decoration: none;
+  opacity: .7;
+  transition: opacity .2s, background .2s, color .2s, border-color .2s;
+}
+#back-link:hover{ opacity: 1; background: #2bff00; color: #1f130d; border-color: #2bff00; }
+
+/* ------------------------------------------------------------ */
+/* STAGE — a single track-row, one full spread visible at a time.  */
+/* width is definite (a share of the stage) so the browser always   */
+/* has something to anchor the aspect-ratio on; the row's own       */
+/* content is absolutely positioned and so contributes no intrinsic  */
+/* size of its own. max-height is the safety net on short windows:   */
+/* the box then just isn't quite as wide as its share of the stage,  */
+/* and object-fit:contain on the image keeps the whole page visible  */
+/* either way, never cropped.                                        */
+/* ------------------------------------------------------------ */
+
+#stage{
+  position: relative;
+  flex: 1 1 auto;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.track-row {
+  position: relative;
+  width: min(98%, calc(98vh * 2599 / 1906));
+  max-height: 98vh;
+  aspect-ratio: 2599 / 1906;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.track-strip {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  will-change: transform;
+}
+
+/* only one side is ever visible at a time — see setSide() in the      */
+/* script, which toggles this class on #stage.                          */
+.side-storto{ display: none; }
+#stage.show-storto .side-dritto{ display: none; }
+#stage.show-storto .side-storto{ display: flex; }
+
+.page-slide {
+  position: relative;
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* pages 2–47 are pre-printed as a single two-page spread — this soft   */
+/* shadow at the exact center marks the gutter between the left and      */
+/* right page, like the crease of a real open book. the cover (page 1)   */
+/* isn't a spread, so it doesn't get one (see the "spread" class,        */
+/* set in makeSlide).                                                     */
+.page-slide.spread::after{
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 4%;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(0,0,0,.14) 48%,
+    rgba(0,0,0,.14) 52%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------ */
+/* CHROME                                                         */
+/* ------------------------------------------------------------ */
+
+#page-number{
+  position: absolute;
+  top: 50%;
+  right: 22px;
+  transform: translateY(-50%) rotate(180deg);
+  writing-mode: vertical-rl;
+  font-size: 12px;
+  letter-spacing: .1em;
+  color: var(--text-dim);
+  z-index: 20;
+  pointer-events: none;
+}
+
+#side-toggle{
+  position: absolute;
+  bottom: 16px;
+  left: 22px;
+  z-index: 20;
+  background: none;
+  border: 1px solid var(--text-faint);
+  border-radius: 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: .06em;
+  padding: 6px 10px;
+  cursor: pointer;
+  opacity: .7;
+  transition: opacity .2s, background .2s, color .2s, border-color .2s;
+}
+#side-toggle:hover{ opacity: 1; background: #2bff00; color: #1f130d; border-color: #2bff00; }
+
+#hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: .12em;
+  color: var(--text-dim);
+  z-index: 20;
+  pointer-events: none;
+  text-align: center;
+}
+
+#nav-arrows {
+  position: absolute;
+  top: 16px;
+  right: 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+}
+
+.arrow-btn {
+  background: none;
+  border: 1px solid var(--text-faint);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  width: 26px;
+  height: 22px;
+  cursor: pointer;
+  opacity: .7;
+  transition: opacity .2s, background .2s, color .2s, border-color .2s;
+}
+.arrow-btn:hover { opacity: 1; background: #2bff00; color: #1f130d; border-color: #2bff00; }
+.arrow-btn:disabled { opacity: .2; pointer-events: none; }
+
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <aside id="sidebar">
+
+    <div id="sidebar-brand">
+      <div class="brand-title">Reading Machines</div>
+      <div class="brand-tag">Publication</div>
+    </div>
+
+    <div class="sidebar-section" id="sidebar-about">
+      <span class="sidebar-label">about</span>
+      <p>A book that can be read from two directions. From one side, it's made for you — words arranged the way books usually arrange them, meant to be read, understood, remembered. Turned upside down, the same pages show what's left after a machine read the same text.</p>
+      <p>Reading Machines began with a simple question: what happens when reading becomes a computational process, and how can graphic design engage with it? We rely on machines to read and produce text without really knowing what they're doing, as if they understood it the way we do — this book doesn't take that for granted.</p>
+      <p>You can flip through both readings at any time.</p>
+    </div>
+
+    <div class="sidebar-section">
+      <span class="sidebar-label">chapters</span>
+      <nav id="chapter-nav"></nav>
+    </div>
+
+    <div id="sidebar-foot">
+      <a href="../tool-space.html" id="back-link">← back to space</a>
+    </div>
+
+  </aside>
+
+  <div id="stage">
+    <div id="page-number">01</div>
+    <button id="side-toggle">flip book ⇄</button>
+    <div id="nav-arrows">
+      <button class="arrow-btn" id="prev">←</button>
+      <button class="arrow-btn" id="next">→</button>
+    </div>
+    <div id="hint">scroll to see pages of the publication</div>
+  </div>
+
+</div>
+
+<script>
+
+/* ------------------------------------------------------------ */
+/* the publication runs 1 → 47, one continuous sequence — no       */
+/* chapter-by-chapter navigation split. page numbers are 1-based,    */
+/* matching the exported page-NN.jpg filenames. CHAPTERS doubles as   */
+/* both the sidebar's clickable table of contents and the label for   */
+/* whichever chapter the reader is currently on (see currentChapter/  */
+/* updateChrome below).                                                */
+/* ------------------------------------------------------------ */
+
+const START = 1;
+const END   = 47;
+const TOTAL = END - START + 1;
+
+const CHAPTERS = [
+  { name: "Prologue",      start: 1,  end: 7  },
+  { name: "Intro",         start: 8,  end: 10 },
+  { name: "OCR Skeleton",  start: 11, end: 17 },
+  { name: "Blind Contour", start: 18, end: 24 },
+  { name: "Anti Type",     start: 25, end: 32 },
+  { name: "Reading Loop",  start: 33, end: 39 },
+  { name: "Intersection",  start: 40, end: 47 },
+];
+
+function pad2(n){ return String(n).padStart(2, "0"); }
+
+function easeInOutQuad(t){ return t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; }
+
+/* ------------------------------------------------------------ */
+/* BUILD — a single strip covering every page. the reader sees      */
+/* one full spread at a time, always the "dritto" (recto) reading.   */
+/* ------------------------------------------------------------ */
+
+const stageEl = document.getElementById("stage");
+
+function makeSlide(folder, pageNum){
+  const slide = document.createElement("div");
+  // page 1 is a single-page cover, not a two-page spread — only pages
+  // 2+ get the gutter shadow (see .page-slide.spread::after above).
+  slide.className = pageNum === 1 ? "page-slide" : "page-slide spread";
+  const img = document.createElement("img");
+  img.src = `pub-assets/${folder}/page-${pad2(pageNum)}.jpg`;
+  img.loading = "lazy";
+  img.alt = `page ${pageNum}`;
+  slide.appendChild(img);
+  return slide;
+}
+
+function buildBook(){
+  const row = document.createElement("div");
+  row.className = "track-row";
+
+  // both strips are built in the SAME reading order (1 -> 47) and stacked
+  // exactly on top of each other — unlike the old side-by-side tete-beche
+  // view, only one is ever visible at a time (see setSide), so there's no
+  // need for storto's DOM order to be reversed/mirrored anymore.
+  const stripDritto = document.createElement("div");
+  stripDritto.className = "track-strip side-dritto";
+  const stripStorto = document.createElement("div");
+  stripStorto.className = "track-strip side-storto";
+
+  for(let p = START; p <= END; p++){
+    stripDritto.appendChild(makeSlide("dritto", p));
+    stripStorto.appendChild(makeSlide("storto", p));
+  }
+
+  row.appendChild(stripDritto);
+  row.appendChild(stripStorto);
+  stageEl.insertBefore(row, stageEl.firstChild);
+
+  return {
+    row,
+    stripDritto,
+    stripStorto,
+    side: "dritto",
+    pos: 0,
+    width: 0,   // the row's real rendered width — pages slide sideways,
+                 // so this is also the page-turn step
+    panAnim: null,
+    snapTimer: null,
+  };
+}
+
+const book = buildBook();
+
+/* ------------------------------------------------------------ */
+/* MEASURE — the row's size is not window-based: its height is       */
+/* derived from its own fixed width + the real page aspect-ratio, so   */
+/* it's always as large as it can be without cropping or leaving a      */
+/* margin inside the page.                                              */
+/* ------------------------------------------------------------ */
+
+function measureBook(){
+  const rect = book.row.getBoundingClientRect();
+  book.width = rect.width;
+}
+
+measureBook();
+
+/* ------------------------------------------------------------ */
+/* SIDEBAR — chapter list doubles as navigation.                   */
+/* ------------------------------------------------------------ */
+
+const chapterNavEl = document.getElementById("chapter-nav");
+const chapterButtons = CHAPTERS.map((chapter, i)=>{
+  const btn = document.createElement("button");
+  btn.className = "chapter-item";
+  btn.innerHTML = `<span class="chapter-num">0${i}</span><span class="chapter-label">${chapter.name}</span>`;
+  btn.addEventListener("click", ()=> goToPage(chapter.start - START));
+  chapterNavEl.appendChild(btn);
+  return btn;
+});
+
+/* ------------------------------------------------------------ */
+/* CHROME                                                         */
+/* ------------------------------------------------------------ */
+
+const pageNumberEl = document.getElementById("page-number");
+const prevBtn       = document.getElementById("prev");
+const nextBtn       = document.getElementById("next");
+const sideToggleBtn = document.getElementById("side-toggle");
+
+function localIndex(){ return book.width ? Math.round(book.pos / book.width) : 0; } // guard: never show NaN if measured before layout is ready
+function maxPos(){ return (TOTAL - 1) * book.width; }
+
+// which chapter is the page we're currently on part of, per the
+// publication's own table of contents (see CHAPTERS above).
+function currentChapter(){
+  const pageNum = START + localIndex();
+  for(let i = 0; i < CHAPTERS.length; i++){
+    if(pageNum >= CHAPTERS[i].start && pageNum <= CHAPTERS[i].end){
+      return { idx: i, chapter: CHAPTERS[i] };
+    }
+  }
+  return { idx: CHAPTERS.length - 1, chapter: CHAPTERS[CHAPTERS.length - 1] };
+}
+
+function updateChrome(){
+  const idx = localIndex();
+  const pageNum = START + idx;
+  const { idx: chIdx } = currentChapter();
+
+  pageNumberEl.textContent = pad2(pageNum);
+  prevBtn.disabled = idx <= 0;
+  nextBtn.disabled = idx >= TOTAL - 1;
+
+  chapterButtons.forEach((btn, i)=> btn.classList.toggle("active", i === chIdx));
+}
+
+/* ------------------------------------------------------------ */
+/* PAGE NAVIGATION — horizontal only.                              */
+/* ------------------------------------------------------------ */
+
+function applyPos(){
+  const t = `translateX(${-book.pos}px)`;
+  book.stripDritto.style.transform = t;
+  book.stripStorto.style.transform = t;
+  updateChrome();
+}
+
+function setSide(side){
+  book.side = side;
+  stageEl.classList.toggle("show-storto", side === "storto");
+  // label stays a plain, language-agnostic "flip ⇄" — dritto/storto are
+  // internal names only (folder names, chapter comments), never shown.
+}
+
+function goToPage(idx){
+  const clamped  = Math.max(0, Math.min(TOTAL - 1, idx));
+  const startPos = book.pos;
+  const destPos  = clamped * book.width;
+  const duration = 380;
+  const startTime = performance.now();
+
+  if(book.panAnim) cancelAnimationFrame(book.panAnim);
+
+  function step(now){
+    const t = Math.min(1, (now - startTime) / duration);
+    book.pos = startPos + (destPos - startPos) * easeInOutQuad(t);
+    applyPos();
+    if(t < 1) book.panAnim = requestAnimationFrame(step);
+  }
+  book.panAnim = requestAnimationFrame(step);
+}
+
+function changePage(delta){
+  goToPage(localIndex() + delta);
+}
+
+/* ---- wheel — any wheel tick turns the page; #stage doesn't scroll  */
+/* ---- natively (there's nothing else on the page to scroll to), so   */
+/* ---- both trackpad axes are free to use for this.                   */
+
+stageEl.addEventListener("wheel", (e)=>{
+  const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+  if(Math.abs(delta) < 1) return; // noise
+
+  e.preventDefault();
+  const mp = maxPos();
+  book.pos = Math.max(0, Math.min(mp, book.pos + delta));
+  applyPos();
+
+  clearTimeout(book.snapTimer);
+  book.snapTimer = setTimeout(()=>{
+    goToPage(localIndex());
+  }, 130);
+}, { passive:false });
+
+/* ---- drag (mouse / touch) — horizontal ---- */
+
+let dragging   = false;
+let dragStartX = 0;
+let dragStartPos = 0;
+
+stageEl.addEventListener("pointerdown", (e)=>{
+  dragging = true;
+  dragStartX = e.clientX;
+  dragStartPos = book.pos;
+  if(book.panAnim) cancelAnimationFrame(book.panAnim);
+});
+
+window.addEventListener("pointermove", (e)=>{
+  if(!dragging) return;
+  const dx = e.clientX - dragStartX;
+  const mp = maxPos();
+  book.pos = Math.max(0, Math.min(mp, dragStartPos - dx));
+  applyPos();
+});
+
+window.addEventListener("pointerup", ()=>{
+  if(!dragging) return;
+  dragging = false;
+  goToPage(localIndex());
+});
+
+/* ---- arrows / keyboard ---- */
+
+prevBtn.addEventListener("click", ()=> changePage(-1));
+nextBtn.addEventListener("click", ()=> changePage(1));
+sideToggleBtn.addEventListener("click", ()=> setSide(book.side === "dritto" ? "storto" : "dritto"));
+
+window.addEventListener("keydown", (e)=>{
+  if(e.key === "ArrowRight" || e.key === "ArrowDown") changePage(1);
+  if(e.key === "ArrowLeft"  || e.key === "ArrowUp")   changePage(-1);
+});
+
+/* ---- resize ---- */
+
+window.addEventListener("resize", ()=>{
+  const idx = localIndex();
+  measureBook();
+  book.pos = idx * book.width;
+  applyPos();
+});
+
+/* ---- initial paint ---- */
+
+applyPos();
+
+</script>
+</body>
+</html>

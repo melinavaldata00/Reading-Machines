@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANTI.OCR</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+@font-face {
+  font-family: "ABC Gaisyr";
+  font-style: normal;
+  src: url("../fonts/ABCGaisyrMono-Light-Trial.otf") format("opentype");
+}
+@font-face {
+  font-family: "Millionaire";
+  font-weight: 400;
+  font-style: normal;
+  src: url("../fonts/millionairetrial-roman.otf") format("opentype");
+}
+@font-face {
+  font-family: "Millionaire";
+  font-weight: 400;
+  font-style: italic;
+  src: url("../fonts/millionairetrial-italic.otf") format("opentype");
+}
+@font-face {
+  font-family: "MillionaireScript";
+  font-weight: 400;
+  src: url("../fonts/millionairetrial-script.otf") format("opentype");
+}
+@font-face {
+  font-family: "ABC Favorit";
+  src: url("../fonts/ABCFavorit-Regular-Trial.otf") format("opentype");
+  font-display: swap;
+}
+
+:root{
+  --bg:#ffffff;
+  --text:#1f130d;
+  --text-dim: rgba(31,19,13,.45);
+  --text-faint: rgba(31,19,13,.22);
+}
+
+html, body {
+  background: var(--bg);
+  font-family: "ABC Favorit", monospace;
+  font-size: 12px;
+  color: var(--text);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.b {
+  font-family: "ABC Favorit", monospace;
+  font-size: 12px; letter-spacing: .02em;
+  padding: 3px 10px;
+  border: 1px solid var(--text-dim);
+  background: none; color: var(--text);
+  cursor: pointer; transition: border-color .15s, opacity .15s;
+}
+.b:hover { opacity: .7; }
+.b.go  { color: var(--text); }
+.b.go:hover { opacity: .7; }
+.b:disabled { opacity: .25; pointer-events: none; }
+
+#stage {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+}
+
+#center-input {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: top .4s ease, transform .4s ease;
+  text-align: center;
+  z-index: 5;
+  width: min(90vw, 600px);
+}
+body.stage-results #center-input{
+  top: 26px;
+  transform: translate(-50%, 0);
+  width: min(90vw, 420px);
+}
+
+#word-input {
+  font-family: "ABC Gaisyr", monospace;
+  font-size: 28px;
+  letter-spacing: .03em;
+  border: none;
+  border-bottom: 1px solid var(--text-dim);
+  padding: 6px 4px;
+  width: 100%;
+  outline: none;
+  color: var(--text);
+  background: none;
+  text-align: center;
+  transition: font-size .4s ease;
+  resize: none;
+  overflow: hidden;
+}
+body.stage-results #word-input{ font-size: 16px; }
+#word-input:focus { border-bottom-color: var(--text); }
+#word-input::placeholder { color: var(--text-faint); }
+
+#center-hint{
+  margin-top: 8px;
+  font-size: 10px;
+  letter-spacing: .08em;
+  color: var(--text-faint);
+}
+body.stage-input #center-hint{ display: none; }
+
+#canvas-wrap {
+  position: absolute;
+  top: 90px;
+  left: 0;
+  right: 0;
+  bottom: 90px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+  padding: 20px 0;
+}
+
+#output-svg {
+  max-width: none;
+  max-height: none;
+}
+
+#placeholder {
+  display: none;
+  color: var(--text-faint);
+  font-size: 12px;
+  letter-spacing: .04em;
+  text-align: center;
+  line-height: 1.2;
+  pointer-events: none;
+}
+body.stage-input #placeholder{ display: block; }
+body.stage-results #placeholder{ display: none; }
+
+#controls-left {
+  position: absolute;
+  left: 20px;
+  bottom: 18px;
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  width: 230px;
+  z-index: 5;
+}
+#controls-left{ display: flex; }
+
+.slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: .03em;
+}
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: var(--text-faint);
+  height: 1px;
+  cursor: pointer;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 8px; height: 8px;
+  background: var(--text);
+  border-radius: 50%;
+}
+input[type=range]::-moz-range-thumb {
+  width: 8px; height: 8px;
+  background: var(--text);
+  border: none;
+  border-radius: 50%;
+}
+
+#prog {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+}
+#prog.show { display: flex; }
+#prog-bar {
+  height: 1px;
+  background: var(--text-faint);
+  width: 100%;
+  position: relative;
+}
+#prog-fill {
+  position: absolute;
+  left: 0; top: 0; height: 100%;
+  background: var(--text);
+  transition: width .2s;
+}
+#prog-txt { font-size: 10px; color: var(--text-dim); letter-spacing: .04em; }
+
+#export-right {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  display: none;
+  gap: 6px;
+  z-index: 5;
+}
+body.stage-results #export-right{ display: flex; }
+
+#iter-section {
+  position: absolute;
+  right: 20px;
+  bottom: 60px;
+  width: 200px;
+  display: none;
+  z-index: 5;
+}
+body.stage-results #iter-section{ display: block; }
+
+.ctrl-group { display: flex; flex-direction: column; gap: 8px; }
+.ctrl-group-label {
+  font-size: 9px; letter-spacing: .1em; color: var(--text-dim);
+  text-transform: uppercase; border-bottom: 1px solid var(--text-faint);
+  padding-bottom: 4px; margin-bottom: 2px;
+}
+.align-btn.active, .font-btn.active, .style-btn.active { border-color: var(--text); }
+.section-label {
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+#iter-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.iter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.iter-letter {
+  font-size: 10px;
+  color: var(--text-dim);
+  width: 12px;
+}
+.iter-bar-wrap {
+  flex: 1;
+  height: 1px;
+  background: var(--text-faint);
+  position: relative;
+}
+.iter-bar-fill {
+  position: absolute;
+  left: 0; top: 0; height: 100%;
+  background: var(--text);
+  transition: width .3s;
+}
+.iter-conf {
+  font-size: 10px;
+  color: var(--text-dim);
+  width: 28px;
+  text-align: right;
+}
+
+#font-building {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  background: rgba(23, 13, 3, 0.88);
+}
+#font-building.show { display: flex; }
+#font-building-inner { text-align: center; animation: fontpulse 1.4s ease-in-out infinite; }
+#font-building-label {
+  font-size: 13px; letter-spacing: .18em;
+  color: var(--text); text-transform: uppercase;
+}
+#font-building-letter { font-size: 9px; letter-spacing: .1em; color: var(--text-dim); margin-top: 10px; }
+#font-building-bar { width: 180px; height: 1px; background: var(--text-faint); margin: 12px auto 0; position: relative; }
+#font-building-fill { position: absolute; left:0; top:0; height:100%; background: var(--text); transition: width .3s ease; }
+@keyframes fontpulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
+</head>
+<body>
+
+<div id="stage">
+
+  <div id="center-input">
+    <textarea id="word-input" rows="3">Anti type resists machine reading while remaining legible to human reading. You can change this text.</textarea>
+    <div id="center-hint">run the loop — each letter processed until the machine can no longer read it</div>
+  </div>
+
+  <div id="font-building">
+  <div id="font-building-inner">
+    <div id="font-building-label">creating font</div>
+    <div id="font-building-letter"></div>
+    <div id="font-building-bar"><div id="font-building-fill" style="width:0%"></div></div>
+  </div>
+</div>
+<div id="canvas-wrap">
+    <div id="placeholder">processing…</div>
+    <svg id="output-svg" style="display:none"></svg>
+  </div>
+
+  <div id="controls-left">
+
+    <div class="ctrl-group">
+      <div class="ctrl-group-label">parameters</div>
+      <div class="slider-row">
+        <div class="slider-label"><span>iterations</span><span id="val-iter">12</span></div>
+        <input type="range" id="sl-iter" min="4" max="20" value="12">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label"><span>blind threshold</span><span id="val-thresh">15</span>%</div>
+        <input type="range" id="sl-thresh" min="5" max="40" value="15">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label"><span>frequency intensity</span><span id="val-freq">0.6</span></div>
+        <input type="range" id="sl-freq" min="1" max="10" value="6">
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-group-label">properties</div>
+      <div class="slider-row">
+        <div class="slider-label"><span>glyph size</span><span id="val-size">150</span>px</div>
+        <input type="range" id="sl-size" min="50" max="500" value="150" step="10">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label"><span>letter spacing</span><span id="val-kern">8</span>%</div>
+        <input type="range" id="sl-kern" min="-15" max="40" value="8">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label"><span>line height</span><span id="val-lh">30</span>%</div>
+        <input type="range" id="sl-lh" min="0" max="80" value="30">
+      </div>
+      <div style="display:flex;gap:4px">
+        <button class="b align-btn" data-align="left" style="flex:1;text-align:center">←</button>
+        <button class="b align-btn active" data-align="center" style="flex:1;text-align:center">↔</button>
+        <button class="b align-btn" data-align="right" style="flex:1;text-align:center">→</button>
+      </div>
+      <div style="display:flex;gap:4px">
+        <button class="b font-btn active" data-font="ABC Gaisyr" style="flex:1;text-align:center;font-size:9px">Gaisyr</button>
+        <button class="b font-btn" data-font="Millionaire" style="flex:1;text-align:center;font-size:9px">Millionaire</button>
+        <button class="b font-btn" data-font="MillionaireScript" style="flex:1;text-align:center;font-size:9px">Script</button>
+      </div>
+      <div style="display:flex;gap:4px">
+        <button class="b style-btn active" data-style="normal" style="flex:1;text-align:center;font-size:9px">roman</button>
+        <button class="b style-btn" data-style="italic" style="flex:1;text-align:center;font-size:9px;font-style:italic">italic</button>
+      </div>
+    </div>
+
+    <button class="b go" id="btn-run">run loop</button>
+
+    <div id="prog">
+      <div id="prog-bar"><div id="prog-fill" style="width:0%"></div></div>
+      <div id="prog-txt">—</div>
+    </div>
+  </div>
+
+  <div id="iter-section">
+    <div class="section-label">blind point</div>
+    <div id="iter-strip"></div>
+  </div>
+
+  <div id="export-right">
+    <button class="b" id="btn-svg" disabled>↓ svg</button>
+    <button class="b" id="btn-png" disabled>↓ png</button>
+    <button class="b" id="btn-otf" disabled>↓ otf</button>
+  </div>
+
+</div>
+
+<script>
+const SERVER = 'http://localhost:5050';
+
+function bindSlider(id, valId, transform) {
+  const sl = document.getElementById(id);
+  const vl = document.getElementById(valId);
+  sl.addEventListener('input', () => {
+    vl.textContent = transform ? transform(sl.value) : sl.value;
+  });
+}
+bindSlider('sl-iter',   'val-iter',   null);
+bindSlider('sl-thresh', 'val-thresh', null);
+bindSlider('sl-freq',   'val-freq',   v => (v/10).toFixed(1));
+bindSlider('sl-size',   'val-size',   null);
+bindSlider('sl-kern',   'val-kern',   null);
+bindSlider('sl-lh',     'val-lh',     null);
+
+// properties — re-render live
+['sl-size','sl-kern','sl-lh'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if (Object.keys(finalGlyphs).length > 0) renderWord();
+  });
+});
+
+// parameters — re-run live
+['sl-iter','sl-thresh','sl-freq'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if (Object.keys(finalGlyphs).length > 0) document.getElementById('btn-run').click();
+  });
+});
+
+// alignment
+let currentAlign = 'center';
+document.querySelectorAll('.align-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.align-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentAlign = btn.dataset.align;
+    if (Object.keys(finalGlyphs).length > 0) renderWord();
+  });
+});
+
+// font + style
+let currentFont = 'ABC Gaisyr';
+let currentStyle = 'normal';
+function applyInputFont() {
+  const el = document.getElementById('word-input');
+  el.style.fontFamily = '"' + currentFont + '", monospace, serif';
+  el.style.fontStyle  = currentStyle;
+}
+document.querySelectorAll('.font-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFont = btn.dataset.font;
+    if (currentFont === 'MillionaireScript') {
+      currentStyle = 'normal';
+      document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('.style-btn[data-style="normal"]').classList.add('active');
+    }
+    applyInputFont();
+    if (Object.keys(finalGlyphs).length > 0) document.getElementById('btn-run').click();
+  });
+});
+document.querySelectorAll('.style-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (currentFont === 'MillionaireScript') return;
+    document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStyle = btn.dataset.style;
+    applyInputFont();
+    if (Object.keys(finalGlyphs).length > 0) document.getElementById('btn-run').click();
+  });
+});
+
+let finalGlyphs = {};
+let currentWord = '';
+
+function prog(show, pct, txt) {
+  document.getElementById('prog').classList.toggle('show', show);
+  if (pct !== undefined) document.getElementById('prog-fill').style.width = Math.round(pct * 100) + '%';
+  if (txt !== undefined) document.getElementById('prog-txt').textContent = txt;
+}
+
+document.getElementById('btn-run').addEventListener('click', async () => {
+  const word = document.getElementById('word-input').value.trim();
+  if (!word) return;
+
+  const maxIter  = parseInt(document.getElementById('sl-iter').value);
+  const thresh   = parseInt(document.getElementById('sl-thresh').value);
+  const freqInt  = parseFloat(document.getElementById('sl-freq').value) / 10;
+  const glyphDim = parseInt(document.getElementById('sl-size').value);
+
+  currentWord = word;
+  finalGlyphs = {};
+
+  document.getElementById('btn-run').disabled = true;
+  document.getElementById('btn-svg').disabled  = true;
+  document.getElementById('btn-png').disabled  = true;
+  document.getElementById('btn-otf').disabled  = true;
+  document.getElementById('output-svg').style.display = 'none';
+  document.getElementById('iter-strip').innerHTML = '';
+  document.body.classList.remove('stage-results');
+
+  prog(true, 0, 'starting...');
+
+  const letters = [...new Set(word.replace(/[\s\n]/g,'').split(''))];
+  let done = 0;
+
+  for (const letter of letters) {
+    prog(true, done / letters.length, 'processing ' + letter + '...');
+
+    try {
+      const res = await fetch(SERVER + '/font-loop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          letter:    letter,
+          max_iter:  maxIter,
+          threshold: thresh,
+          intensity: freqInt,
+          dim:       glyphDim,
+          font_name:  currentFont,
+          font_style: currentStyle,
+        })
+      });
+      const data = await res.json();
+      finalGlyphs[letter] = {
+        paths:     data.paths,
+        blindIter: data.blind_iter,
+        finalConf: data.final_conf,
+        dim:       glyphDim,
+      };
+    } catch(e) {
+      console.error('error on letter', letter, e);
+      finalGlyphs[letter] = { paths: [], blindIter: 0, finalConf: 0, dim: glyphDim };
+    }
+
+    done++;
+    updateIterStrip(letter, finalGlyphs[letter]);
+  }
+
+  prog(false);
+  document.getElementById('btn-run').disabled = false;
+  renderWord();
+});
+
+function updateIterStrip(letter, glyph) {
+  const strip = document.getElementById('iter-strip');
+
+  const row = document.createElement('div');
+  row.className = 'iter-row';
+  const maxIter = parseInt(document.getElementById('sl-iter').value);
+  const pct = Math.round((glyph.blindIter / maxIter) * 100);
+
+  row.innerHTML = `
+    <span class="iter-letter">${letter}</span>
+    <div class="iter-bar-wrap">
+      <div class="iter-bar-fill" style="width:${pct}%"></div>
+    </div>
+    <span class="iter-conf">${glyph.blindIter}x</span>
+  `;
+  strip.appendChild(row);
+}
+
+function wrapText(text, cols) {
+  const out = [];
+  for (const para of text.split('\n')) {
+    if (!para.trim()) continue;
+    const words = para.split(' ');
+    let line = '';
+    for (const w of words) {
+      if (!line) { line = w; }
+      else if (line.length + 1 + w.length <= cols) { line += ' ' + w; }
+      else { out.push(line); line = w; }
+    }
+    if (line) out.push(line);
+  }
+  return out;
+}
+
+function renderWord() {
+  const input    = currentWord;
+  if (!input) return;
+
+  const glyphDim  = parseInt(document.getElementById('sl-size').value);
+  const kernPct   = parseInt(document.getElementById('sl-kern').value);
+  const lhPct     = parseInt(document.getElementById('sl-lh').value);
+  const gap       = glyphDim * (kernPct / 100);
+  const lineGap   = glyphDim * (lhPct / 100);
+  // cols based on glyph size: larger glyphs = fewer per line
+  const cols  = Math.max(1, Math.round(600 / glyphDim));
+  const lines = wrapText(input, cols);
+
+  const maxLen = Math.max(...lines.map(l => l.length));
+  const totalW = maxLen * (glyphDim + gap) - gap;
+  const totalH = lines.length * (glyphDim + lineGap) - lineGap;
+
+  const svgEl = document.getElementById('output-svg');
+  svgEl.setAttribute('viewBox', `0 0 ${totalW} ${totalH}`);
+  svgEl.setAttribute('width',  totalW);
+  svgEl.setAttribute('height', totalH);
+  svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  svgEl.innerHTML = '';
+
+  lines.forEach((line, lineIdx) => {
+    const oy = lineIdx * (glyphDim + lineGap);
+    const lineW = line.length * (glyphDim + gap) - gap;
+    let alignOx = 0;
+    if (currentAlign === 'center') alignOx = (totalW - lineW) / 2;
+    else if (currentAlign === 'right') alignOx = totalW - lineW;
+
+    for (let i = 0; i < line.length; i++) {
+      const letter = line[i];
+      const glyph  = letter === ' ' ? null : finalGlyphs[letter];
+      const ox     = alignOx + i * (glyphDim + gap);
+
+      if (!glyph || !glyph.paths || !glyph.paths.length) {
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', ox + glyphDim * 0.1);
+        rect.setAttribute('y', oy + glyphDim * 0.1);
+        rect.setAttribute('width',  glyphDim * 0.8);
+        rect.setAttribute('height', glyphDim * 0.8);
+        rect.setAttribute('fill', 'none');
+        rect.setAttribute('stroke', 'rgba(31,19,13,0.18)');
+        rect.setAttribute('stroke-width', '0.5');
+        svgEl.appendChild(rect);
+        continue;
+      }
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+      // compute bounding box of all paths to normalize to glyphDim cell
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const path of glyph.paths) {
+        const pts = path.pts;
+        if (!pts || pts.length < 2) continue;
+        for (const pt of pts) {
+          const px = path.cx + pt[0], py = path.cy + pt[1];
+          if (px < minX) minX = px; if (px > maxX) maxX = px;
+          if (py < minY) minY = py; if (py > maxY) maxY = py;
+        }
+      }
+      const bw = maxX - minX || 1, bh = maxY - minY || 1;
+      const scale = Math.min(glyphDim / bw, glyphDim / bh) * 0.88;
+      const offX = ox + (glyphDim - bw * scale) / 2 - minX * scale;
+      const offY = oy + (glyphDim - bh * scale) / 2 - minY * scale;
+      g.setAttribute('transform', `translate(${offX}, ${offY}) scale(${scale})`);
+
+      for (const path of glyph.paths) {
+        const pts = path.pts;
+        if (!pts || pts.length < 2) continue;
+        const cx = path.cx;
+        const cy = path.cy;
+        let d = `M ${cx + pts[0][0]} ${cy + pts[0][1]}`;
+        for (let j = 1; j < pts.length; j++) {
+          d += ` L ${cx + pts[j][0]} ${cy + pts[j][1]}`;
+        }
+        d += ' Z';
+        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pathEl.setAttribute('d', d);
+        pathEl.setAttribute('fill', 'none');
+        pathEl.setAttribute('stroke', '#1f130d');
+        pathEl.setAttribute('stroke-width', String(0.8 / scale));
+        g.appendChild(pathEl);
+      }
+
+      svgEl.appendChild(g);
+    }
+  });
+
+  svgEl.style.display = 'block';
+  document.getElementById('btn-svg').disabled = false;
+  document.getElementById('btn-png').disabled = false;
+  document.getElementById('btn-otf').disabled = false;
+  document.body.classList.add('stage-results');
+}
+
+function buildExportSvg() {
+  const svgEl = document.getElementById('output-svg');
+  const clone = svgEl.cloneNode(true);
+  const vb = svgEl.viewBox.baseVal;
+
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bg.setAttribute('width', vb.width);
+  bg.setAttribute('height', vb.height);
+  bg.setAttribute('fill', '#ffffff');
+  clone.insertBefore(bg, clone.firstChild);
+
+  clone.querySelectorAll('path').forEach(p => p.setAttribute('stroke', '#000000'));
+  clone.querySelectorAll('rect').forEach(r => {
+    if (r === bg) return;
+    r.setAttribute('stroke', 'rgba(0,0,0,0.18)');
+  });
+
+  return clone;
+}
+
+document.getElementById('btn-svg').addEventListener('click', () => {
+  const exportSvg = buildExportSvg();
+  const serial = new XMLSerializer().serializeToString(exportSvg);
+  const blob   = new Blob([serial], { type: 'image/svg+xml' });
+  const a      = document.createElement('a');
+  a.href       = URL.createObjectURL(blob);
+  a.download   = 'anti-ocr-' + currentWord.toLowerCase().replace(/\s+/g,'-') + '.svg';
+  a.click();
+});
+
+document.getElementById('btn-png').addEventListener('click', () => {
+  const svgEl     = document.getElementById('output-svg');
+  const exportSvg = buildExportSvg();
+  const serial = new XMLSerializer().serializeToString(exportSvg);
+  const blob   = new Blob([serial], { type: 'image/svg+xml' });
+  const url    = URL.createObjectURL(blob);
+  const img    = new window.Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width  = svgEl.viewBox.baseVal.width;
+    canvas.height = svgEl.viewBox.baseVal.height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'anti-ocr-' + currentWord.toLowerCase().replace(/\s+/g,'-') + '.png';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+});
+
+
+document.getElementById('word-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); document.getElementById('btn-run').click(); }
+});
+
+
+// ── OTF export ────────────────────────────────────────────
+function showFontBuilding(show, pct, letter) {
+  document.getElementById('font-building').classList.toggle('show', show);
+  if (pct !== undefined) document.getElementById('font-building-fill').style.width = Math.round(pct * 100) + '%';
+  if (letter !== undefined) document.getElementById('font-building-letter').textContent = letter ? 'processing ' + letter : '';
+}
+
+document.getElementById('btn-otf').addEventListener('click', async () => {
+  const ALPHABET = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  const maxIter  = parseInt(document.getElementById('sl-iter').value);
+  const thresh   = parseInt(document.getElementById('sl-thresh').value);
+  const freqInt  = parseFloat(document.getElementById('sl-freq').value) / 10;
+  const glyphDim = parseInt(document.getElementById('sl-size').value);
+
+  const missing = ALPHABET.filter(l => !finalGlyphs[l]);
+  if (missing.length > 0) {
+    showFontBuilding(true, 0, '');
+    for (let i = 0; i < missing.length; i++) {
+      const letter = missing[i];
+      showFontBuilding(true, i / missing.length, letter);
+      try {
+        const res = await fetch(SERVER + '/font-loop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            letter, max_iter: maxIter, threshold: thresh,
+            intensity: freqInt, dim: glyphDim,
+            font_name: currentFont, font_style: currentStyle,
+          })
+        });
+        const data = await res.json();
+        finalGlyphs[letter] = { paths: data.paths, blindIter: data.blind_iter, finalConf: data.final_conf, dim: glyphDim };
+      } catch(e) {
+        finalGlyphs[letter] = { paths: [], blindIter: 0, finalConf: 0, dim: glyphDim };
+      }
+    }
+  }
+
+  document.getElementById('font-building-label').textContent = 'building font';
+  showFontBuilding(true, 1, '');
+
+  try {
+    const UPM = 1000, ASCENDER = 800, DESCENDER = -200;
+
+    const notdefPath = new opentype.Path();
+    notdefPath.moveTo(50,0); notdefPath.lineTo(450,0);
+    notdefPath.lineTo(450,700); notdefPath.lineTo(50,700); notdefPath.close();
+
+    const glyphList = [
+      new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 500, path: notdefPath }),
+      new opentype.Glyph({ name: 'space', unicode: 32, advanceWidth: 250, path: new opentype.Path() }),
+    ];
+
+    ALPHABET.forEach(letter => {
+      const glyph = finalGlyphs[letter];
+      const otPath = new opentype.Path();
+      const scale  = UPM / glyphDim;
+
+      if (glyph && glyph.paths && glyph.paths.length > 0) {
+        glyph.paths.forEach(pg => {
+          const pts = pg.pts;
+          if (!pts || pts.length < 2) return;
+          const cx = pg.cx, cy = pg.cy;
+          const toX = x => Math.round((cx + x) * scale);
+          const toY = y => Math.round(ASCENDER - (cy + y) * scale);
+          otPath.moveTo(toX(pts[0][0]), toY(pts[0][1]));
+          for (let j = 1; j < pts.length; j++) otPath.lineTo(toX(pts[j][0]), toY(pts[j][1]));
+          otPath.close();
+        });
+      }
+
+      glyphList.push(new opentype.Glyph({
+        name: letter,
+        unicode: letter.charCodeAt(0),
+        advanceWidth: Math.round(glyphDim * scale),
+        path: otPath,
+      }));
+    });
+
+    const font = new opentype.Font({
+      familyName: 'AntiOCR', styleName: 'Regular',
+      unitsPerEm: UPM, ascender: ASCENDER, descender: DESCENDER,
+      glyphs: glyphList,
+    });
+    font.download('anti-ocr.otf');
+  } catch(e) {
+    alert('Font generation failed: ' + e.message);
+  }
+
+  showFontBuilding(false);
+  document.getElementById('font-building-label').textContent = 'creating font';
+});
+</script>
+</body>
+</html>

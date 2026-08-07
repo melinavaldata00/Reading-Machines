@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>READING LOOP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+@font-face {
+  font-family: "ABC Favorit";
+  src: url("../fonts/ABCFavorit-Regular-Trial.otf") format("opentype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "ABC Gaisyr";
+  src: url("../fonts/ABCGaisyrMono-Light-Trial.otf") format("opentype");
+  font-display: swap;
+}
+
+:root{
+  --bg:#ffffff;
+  --text:#1f130d;
+  --text-dim: rgba(31,19,13,.45);
+  --text-faint: rgba(31,19,13,.22);
+}
+
+body {
+  background: var(--bg);
+  font-family: "ABC Favorit", monospace;
+  font-size: 12px;
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+#topbar-title { font-size: 11px; letter-spacing: .04em; color: var(--text-dim); margin-right: 8px; font-family:"ABC Gaisyr", monospace; }
+#topbar-title b { color: var(--text); font-weight: 400; }
+
+.b {
+  font-family: "ABC Favorit", monospace;
+  font-size: 12px; letter-spacing: .02em;
+  padding: 3px 10px;
+  border: 1px solid var(--text-dim);
+  background: none; color: var(--text);
+  cursor: pointer; transition: border-color .15s, opacity .15s;
+}
+.b:hover { opacity: .7; }
+.b.on  { border-color: var(--text); opacity: 1; }
+.b.go  { color: var(--text); }
+.b.go:hover { opacity: .7; }
+.b:disabled { opacity: .25; pointer-events: none; }
+
+#main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#left {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+#canvas-area {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#drop {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 5;
+}
+#drop input {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  width: 100%; height: 100%;
+}
+#drop-hint { color: var(--text-dim); text-align: center; pointer-events: none;
+  font-size: 12px; letter-spacing: .04em; line-height: 2.2; }
+#drop.drag #drop-hint { color: var(--text); }
+#drop.gone { pointer-events: none; opacity: 0; }
+
+#stage {
+  position: relative;
+  background: transparent;
+}
+#svg-doc { display: block; }
+
+.outline-group { cursor: move; }
+.outline-group path { fill: none; stroke: #000; vector-effect: non-scaling-stroke; }
+.outline-group rect.hit { fill: transparent; stroke: none; }
+.sel-outline { fill: none; stroke: #c0392b; stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.grid-line { stroke: var(--text); stroke-width: 0.5; opacity: 0.3; pointer-events: none; }
+
+#edit-panel {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  background: var(--bg);
+  border: 1px solid var(--text);
+  padding: 12px;
+  width: 280px;
+  z-index: 50;
+  display: none;
+}
+#edit-panel.show { display: block; }
+#edit-panel .ep-close {
+  position: absolute; top: 10px; right: 12px;
+  cursor: pointer; color: var(--text-dim); font-size: 14px;
+}
+#edit-panel .ep-close:hover { color: var(--text); }
+#edit-panel .ep-row { display: flex; gap: 6px; }
+#edit-panel .ep-row .b { flex: 1; text-align: center; }
+#edit-panel .ep-meta { font-size: 10px; color: var(--text-dim); line-height: 1.6; margin-top: 8px; }
+input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type=color]::-webkit-color-swatch { border: 1px solid #ddd; border-radius: 2px; }
+
+#timeline-bar {
+  flex-shrink: 0;
+  border-top: 1px solid var(--text-faint);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+}
+#timeline-label {
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--text-dim);
+  white-space: nowrap;
+  min-width: 90px;
+}
+#timeline-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 1px;
+  background: var(--text-faint);
+  outline: none;
+  cursor: pointer;
+}
+#timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 8px; height: 8px;
+  background: var(--text); border-radius: 50%;
+  cursor: pointer;
+}
+#timeline-pos {
+  font-size: 10px; color: var(--text-dim); min-width: 70px; text-align: right;
+}
+
+#right {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  border-left: 1px solid var(--text-faint);
+}
+
+#right-placeholder{
+  padding: 14px 16px;
+  font-size: 11px;
+  letter-spacing: .02em;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+body.stage-results #right-placeholder{ display: none; }
+
+.group-basic{ display: none; flex-direction: column; opacity: 0; transition: opacity .35s; flex: 1; min-height: 0; }
+body.stage-results .group-basic{ display: flex; opacity: 1; }
+
+.section {
+  padding: 12px 16px;
+}
+.section-title {
+  font-size: 10px; letter-spacing: .04em; color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.btn-group { display: flex; flex-direction: column; gap: 6px; }
+.btn-group .b { text-align: left; width: auto; }
+
+.slider-row { display: flex; align-items: center; gap: 8px; }
+.slider-label { font-size: 10px; color: var(--text-dim); letter-spacing: .03em; min-width: 60px; }
+input[type=range] {
+  -webkit-appearance: none; flex: 1; height: 1px;
+  background: var(--text-faint); cursor: pointer; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 8px; height: 8px;
+  background: var(--text); border-radius: 50%;
+}
+.num { font-size: 10px; color: var(--text-dim); min-width: 28px; text-align: right; }
+
+#stats {
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.9;
+  letter-spacing: .02em;
+}
+#stats b { color: var(--text); font-weight: 400; }
+
+#export-section {
+  padding: 12px 16px; display: flex; gap: 6px;
+  margin-top: auto; border-top: 1px solid var(--text-faint);
+}
+#export-section .b { flex: 1; text-align: center; }
+
+#prog {
+  display: none; position: absolute; inset: 0;
+  background: rgba(43,26,9,.93); z-index: 20;
+  align-items: center; justify-content: center; flex-direction: column; gap: 10px;
+}
+#prog.show { display: flex; }
+#prog-txt  { font-size: 10px; color: var(--text-dim); letter-spacing: .04em; }
+#prog-track { width: 130px; height: 1px; background: var(--text-faint); }
+#prog-fill  { height: 1px; background: var(--text); width: 0; transition: width .2s; }
+
+footer-note {
+  display: block;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: .03em;
+  line-height: 1.8;
+  padding: 12px 16px;
+  margin-top: auto;
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span id="topbar-title"><b>READING LOOP</b> — <span id="fname">no file</span></span>
+  <button class="b" id="btn-import">import</button>
+  <button class="b go" id="btn-run" disabled>read</button>
+  <input type="file" accept="image/*" id="file-input" style="display:none">
+  <div style="flex:1"></div>
+  <button class="b go" id="btn-reread" disabled>re-read</button>
+</div>
+
+<div id="main">
+  <div id="left">
+    <div id="canvas-area">
+      <div id="drop">
+        <input type="file" accept="image/*" id="file-input-drop">
+        <div id="drop-hint">drop image here<br>or use import</div>
+      </div>
+      <div id="stage">
+        <svg id="svg-doc" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div id="edit-panel">
+        <div class="section-title">selected word</div>
+        <span class="ep-close" id="ep-close">×</span>
+        <input type="text" id="ep-text" style="width:100%;font-family:"ABC Favorit",monospace;font-size:12px;border:1px solid var(--text-dim);background:none;color:var(--text);padding:4px 6px;outline:none;margin-bottom:8px">
+        <div class="slider-row"><span class="slider-label">scale</span><input type="range" id="ep-scale" min="20" max="300" value="100"></div>
+        <div class="slider-row" style="margin-top:6px"><span class="slider-label">rotation</span><input type="range" id="ep-rotation" min="-180" max="180" value="0"></div>
+        <div class="slider-row" style="margin-top:6px"><span class="slider-label">fill</span><input type="range" id="ep-fill" min="0" max="100" value="0"></div>
+        <div class="slider-row" style="margin-top:6px"><span class="slider-label">conf.</span><input type="range" id="ep-conf" min="0" max="100" value="50"></div>
+        <div class="slider-row" style="margin-top:6px">
+          <span class="slider-label">color</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="color" id="ep-color" value="#000000" style="width:28px;height:20px;border:none;cursor:pointer;padding:0;background:none">
+            <button class="b" id="ep-color-reset" style="font-size:9px;padding:2px 6px">reset</button>
+          </div>
+        </div>
+        <div class="slider-row" style="margin-top:6px"><span class="slider-label">opacity</span><input type="range" id="ep-opacity" min="5" max="100" value="100"></div>
+        <div class="ep-row" style="margin-top:10px">
+          <button class="b" id="ep-front">forward</button>
+          <button class="b" id="ep-back">back</button>
+        </div>
+        <div class="ep-row" style="margin-top:6px">
+          <button class="b" id="ep-delete" style="color:#c0392b;border-color:#c0392b">delete</button>
+        </div>
+        <div class="ep-meta" id="ep-meta">—</div>
+      </div>
+      <div id="prog">
+        <div id="prog-txt">loading…</div>
+        <div id="prog-track"><div id="prog-fill"></div></div>
+      </div>
+    </div>
+
+    <div id="timeline-bar">
+      <span id="timeline-label">timeline</span>
+      <input type="range" id="timeline-slider" min="0" max="0" value="0" disabled>
+      <span id="timeline-pos">state 0 / 0</span>
+    </div>
+  </div>
+
+  <div id="right">
+
+    <div id="right-placeholder">import an image and press "read" —<br>controls appear here once<br>the machine has read something.</div>
+
+    <div class="group-basic">
+
+      <div class="section">
+        <div class="section-title">auto-loop</div>
+        <div class="slider-row">
+          <span class="slider-label">iterations</span>
+          <input type="range" id="loop-n" min="1" max="12" value="4">
+          <span class="num" id="loop-n-v">4</span>
+        </div>
+        <div class="btn-group" style="margin-top:10px">
+          <button class="b go" id="btn-loop" disabled>run auto-loop</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">current state</div>
+        <div id="stats">no document yet</div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">compare</div>
+        <div class="btn-group" style="flex-direction:row;gap:8px">
+          <button class="b" id="btn-show-origin" disabled style="flex:1">origin</button>
+          <button class="b" id="btn-show-current" disabled style="flex:1">current</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">layout</div>
+        <div class="btn-group">
+          <button class="b" id="btn-grid">grid — off</button>
+        </div>
+      </div>
+
+      <div id="export-section">
+        <button class="b" id="btn-svg" disabled>↓ svg</button>
+        <button class="b" id="btn-png" disabled>↓ png</button>
+      </div>
+
+      <footer-note>
+        each loop adds a new reading<br>
+        on top — nothing erased.<br>
+        select an outline to edit it,<br>
+        then read again.
+      </footer-note>
+
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="co-read.js"></script>
+</body>
+</html>
