@@ -326,8 +326,8 @@ body.stage-results #iter-section{ display: block; }
     <div class="ctrl-group">
       <div class="ctrl-group-label">parameters</div>
       <div class="slider-row">
-        <div class="slider-label"><span>iterations</span><span id="val-iter">5</span></div>
-        <input type="range" id="sl-iter" min="4" max="20" value="5">
+        <div class="slider-label"><span>iterations</span><span id="val-iter">4</span></div>
+        <input type="range" id="sl-iter" min="4" max="20" value="4">
       </div>
       <div class="slider-row">
         <div class="slider-label"><span>blind threshold</span><span id="val-thresh">15</span>%</div>
@@ -521,7 +521,7 @@ document.getElementById('btn-run').addEventListener('click', async () => {
   let done = 0;
   prog(true, 0, 'processing ' + letters.length + ' letters...');
 
-  await runWithConcurrency(letters, 4, async (letter) => {
+  await runWithConcurrency(letters, 1, async (letter) => {
     try {
       const res = await fetch(SERVER + '/font-loop', {
         method: 'POST',
@@ -767,7 +767,7 @@ document.getElementById('btn-otf').addEventListener('click', async () => {
   if (missing.length > 0) {
     showFontBuilding(true, 0, '');
     let doneCount = 0;
-    await runWithConcurrency(missing, 4, async (letter) => {
+    await runWithConcurrency(missing, 1, async (letter) => {
       try {
         const res = await fetch(SERVER + '/font-loop', {
           method: 'POST',
