@@ -1,5 +1,6 @@
 import os
 import io
+import time
 import base64
 import numpy as np
 import cv2
@@ -363,21 +364,33 @@ def font_loop():
             })
         return paths
 
+    t_start = time.time()
     img        = render_letter(letter, dim)
+    print(f'[font-loop] render_letter: {time.time()-t_start:.2f}s', flush=True)
+
+    t0 = time.time()
     conf_prev  = measure_conf(letter, img)
+    print(f'[font-loop] initial measure_conf: {time.time()-t0:.2f}s (conf={conf_prev})', flush=True)
+
     final_img  = img.copy()
     blind_iter = max_iter
     final_conf = conf_prev
 
     for it in range(1, max_iter + 1):
+        t0 = time.time()
         img_new = iter_fourier(img, intensity)
+        t1 = time.time()
         conf    = measure_conf(letter, img_new)
+        t2 = time.time()
+        print(f'[font-loop] iter {it}/{max_iter}: fourier={t1-t0:.2f}s tesseract={t2-t1:.2f}s (conf={conf})', flush=True)
         if conf < threshold and conf_prev >= threshold:
             final_img  = img.copy()
             blind_iter = it - 1
             final_conf = conf_prev
         img       = img_new
         conf_prev = conf
+
+    print(f'[font-loop] TOTAL: {time.time()-t_start:.2f}s', flush=True)
 
     if blind_iter == max_iter:
         final_img  = img
