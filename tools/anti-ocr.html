@@ -209,6 +209,7 @@ input[type=range]::-moz-range-thumb {
   transition: width .2s;
 }
 #prog-txt { font-size: 10px; color: var(--text-dim); letter-spacing: .04em; }
+#prog-hint { font-size: 9px; color: var(--text-faint); letter-spacing: .03em; margin-top: 3px; opacity: .7; }
 
 #export-right {
   position: absolute;
@@ -294,6 +295,7 @@ body.stage-results #iter-section{ display: block; }
   color: var(--text); text-transform: uppercase;
 }
 #font-building-letter { font-size: 9px; letter-spacing: .1em; color: var(--text-dim); margin-top: 10px; }
+#font-building-hint { font-size: 9px; letter-spacing: .03em; color: var(--text-faint); margin-top: 14px; opacity: .7; }
 #font-building-bar { width: 180px; height: 1px; background: var(--text-faint); margin: 12px auto 0; position: relative; }
 #font-building-fill { position: absolute; left:0; top:0; height:100%; background: var(--text); transition: width .3s ease; }
 @keyframes fontpulse { 0%,100%{opacity:1} 50%{opacity:.35} }
@@ -314,6 +316,7 @@ body.stage-results #iter-section{ display: block; }
     <div id="font-building-label">creating font</div>
     <div id="font-building-letter"></div>
     <div id="font-building-bar"><div id="font-building-fill" style="width:0%"></div></div>
+    <div id="font-building-hint">please be patient, it takes a few seconds per letter</div>
   </div>
 </div>
 <div id="canvas-wrap">
@@ -374,6 +377,7 @@ body.stage-results #iter-section{ display: block; }
     <div id="prog">
       <div id="prog-bar"><div id="prog-fill" style="width:0%"></div></div>
       <div id="prog-txt">—</div>
+      <div id="prog-hint">please be patient, it takes a few seconds per letter</div>
     </div>
   </div>
 
