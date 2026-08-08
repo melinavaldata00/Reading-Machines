@@ -342,8 +342,8 @@ body.stage-results #iter-section{ display: block; }
     <div class="ctrl-group">
       <div class="ctrl-group-label">properties</div>
       <div class="slider-row">
-        <div class="slider-label"><span>glyph size</span><span id="val-size">150</span>px</div>
-        <input type="range" id="sl-size" min="50" max="500" value="150" step="10">
+        <div class="slider-label"><span>glyph size</span><span id="val-size">90</span>px</div>
+        <input type="range" id="sl-size" min="50" max="500" value="90" step="10">
       </div>
       <div class="slider-row">
         <div class="slider-label"><span>letter spacing</span><span id="val-kern">8</span>%</div>
@@ -521,7 +521,7 @@ document.getElementById('btn-run').addEventListener('click', async () => {
   let done = 0;
   prog(true, 0, 'processing ' + letters.length + ' letters...');
 
-  await runWithConcurrency(letters, 3, async (letter) => {
+  await runWithConcurrency(letters, 4, async (letter) => {
     try {
       const res = await fetch(SERVER + '/font-loop', {
         method: 'POST',
@@ -767,7 +767,7 @@ document.getElementById('btn-otf').addEventListener('click', async () => {
   if (missing.length > 0) {
     showFontBuilding(true, 0, '');
     let doneCount = 0;
-    await runWithConcurrency(missing, 3, async (letter) => {
+    await runWithConcurrency(missing, 4, async (letter) => {
       try {
         const res = await fetch(SERVER + '/font-loop', {
           method: 'POST',

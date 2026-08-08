@@ -304,8 +304,10 @@ def font_loop():
 
     def measure_conf(char, img):
         h, w = img.shape[:2]
-        strip = np.ones((h, w * 5 + 40, 3), dtype=np.uint8) * 255
-        for i in range(5):
+        reps = 3  # fewer repeats = smaller image = faster tesseract, still
+                  # enough context width for it to reliably read the glyph
+        strip = np.ones((h, w * reps + 40, 3), dtype=np.uint8) * 255
+        for i in range(reps):
             strip[:h, i * (w + 8):i * (w + 8) + w] = img
         try:
             data = pytesseract.image_to_data(strip, lang='eng',
