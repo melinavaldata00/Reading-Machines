@@ -238,7 +238,7 @@ def font_loop():
 
     body      = request.json
     letter    = body.get('letter', 'A').strip()
-    max_iter  = int(body.get('max_iter', 7))
+    max_iter  = int(body.get('max_iter', 5))
     threshold = int(body.get('threshold', 15))
     intensity = float(body.get('intensity', 0.6))
     font_size_ratio = float(body.get('font_size', 0.75))
