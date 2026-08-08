@@ -474,6 +474,27 @@ function prog(show, pct, txt) {
   if (txt !== undefined) document.getElementById('prog-txt').textContent = txt;
 }
 
+// runs `worker(item)` over `items` with at most `limit` requests in flight at
+// once — lets several letters be processed by the server concurrently instead
+// of waiting for each one to finish before starting the next.
+async function runWithConcurrency(items, limit, worker) {
+  let idx = 0, active = 0;
+  return new Promise(resolve => {
+    function next() {
+      if (idx >= items.length && active === 0) { resolve(); return; }
+      while (active < limit && idx < items.length) {
+        const item = items[idx++];
+        active++;
+        Promise.resolve(worker(item)).finally(() => {
+          active--;
+          next();
+        });
+      }
+    }
+    next();
+  });
+}
+
 document.getElementById('btn-run').addEventListener('click', async () => {
   const word = document.getElementById('word-input').value.trim();
   if (!word) return;
@@ -498,10 +519,9 @@ document.getElementById('btn-run').addEventListener('click', async () => {
 
   const letters = [...new Set(word.replace(/[\s\n]/g,'').split(''))];
   let done = 0;
+  prog(true, 0, 'processing ' + letters.length + ' letters...');
 
-  for (const letter of letters) {
-    prog(true, done / letters.length, 'processing ' + letter + '...');
-
+  await runWithConcurrency(letters, 3, async (letter) => {
     try {
       const res = await fetch(SERVER + '/font-loop', {
         method: 'POST',
@@ -529,8 +549,9 @@ document.getElementById('btn-run').addEventListener('click', async () => {
     }
 
     done++;
+    prog(true, done / letters.length, 'processing ' + letter + '...');
     updateIterStrip(letter, finalGlyphs[letter]);
-  }
+  });
 
   prog(false);
   document.getElementById('btn-run').disabled = false;
@@ -745,9 +766,8 @@ document.getElementById('btn-otf').addEventListener('click', async () => {
   const missing = ALPHABET.filter(l => !finalGlyphs[l]);
   if (missing.length > 0) {
     showFontBuilding(true, 0, '');
-    for (let i = 0; i < missing.length; i++) {
-      const letter = missing[i];
-      showFontBuilding(true, i / missing.length, letter);
+    let doneCount = 0;
+    await runWithConcurrency(missing, 3, async (letter) => {
       try {
         const res = await fetch(SERVER + '/font-loop', {
           method: 'POST',
@@ -763,7 +783,9 @@ document.getElementById('btn-otf').addEventListener('click', async () => {
       } catch(e) {
         finalGlyphs[letter] = { paths: [], blindIter: 0, finalConf: 0, dim: glyphDim };
       }
-    }
+      doneCount++;
+      showFontBuilding(true, doneCount / missing.length, letter);
+    });
   }
 
   document.getElementById('font-building-label').textContent = 'building font';

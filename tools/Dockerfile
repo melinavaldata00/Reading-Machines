@@ -21,4 +21,4 @@ COPY fonts ./fonts
 ENV PORT=5050
 EXPOSE 5050
 
-CMD ["sh", "-c", "gunicorn -w 1 -b 0.0.0.0:${PORT} --timeout 180 server:app"]
+CMD ["sh", "-c", "gunicorn --worker-class gthread --workers 1 --threads 4 -b 0.0.0.0:${PORT} --timeout 180 server:app"]
