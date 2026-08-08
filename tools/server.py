@@ -12,6 +12,11 @@ from PIL import Image
 app = Flask(__name__)
 CORS(app)
 
+
+@app.route('/')
+def health():
+    return jsonify({'status': 'ok', 'service': 'reading-machines cv layers'})
+
 # ── helpers ───────────────────────────────────────────────
 
 def decode_image(b64):
@@ -389,5 +394,6 @@ def font_loop():
 
 
 if __name__ == '__main__':
-    print('\n  CV LAYERS server running at http://localhost:5050\n')
-    app.run(port=5050, debug=False)
+    port = int(os.environ.get('PORT', 5050))
+    print(f'\n  CV LAYERS server running on port {port}\n')
+    app.run(host='0.0.0.0', port=port, debug=False)
