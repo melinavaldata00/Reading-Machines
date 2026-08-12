@@ -194,14 +194,18 @@
     }
     .tp-rl-camera .tp-text{ position:absolute; inset:0; }
     .rl-viewport{ position:absolute; inset:0; overflow:hidden; }
-    .rl-world{ position:absolute; top:0; left:0; will-change:transform; transition:transform .45s cubic-bezier(.65,0,.35,1); }
-    .rl-piece{
-      position:absolute; max-width:1200px; white-space:nowrap; font-family:"ABC Favorit", monospace;
-      font-size:20px; line-height:1.55; color:var(--tp-text-dim); opacity:.45; transition:color .3s ease, opacity .3s ease;
+    .rl-world{ position:absolute; top:0; left:0; right:0; will-change:transform; transition:transform 1.1s cubic-bezier(.65,0,.35,1); }
+    .rl-row{ position:absolute; left:0; width:100%; height:0; }
+    .rl-word{
+      position:absolute; white-space:nowrap; font-family:"ABC Favorit", monospace;
+      font-size:15px; line-height:1.3; color:var(--tp-text-dim);
+      opacity:.32; transition:opacity .6s ease;
     }
-    .rl-piece.visited{ opacity:.3; }
-    .rl-piece.active{ color:var(--tp-text); opacity:1; cursor:pointer; }
-    .rl-piece.active:hover{ opacity:.7; }
+    .rl-word.decoy{ opacity:.3; }
+    .rl-word.selected{
+      background:var(--tp-text); color:var(--tp-bg);
+      padding:2px 7px; border-radius:2px; opacity:1; font-weight:500;
+    }
 
     #btn-next{ position:fixed; bottom:18px; right:22px; z-index:250; opacity:0; pointer-events:none; transition:opacity .3s; }
     #btn-go-tool{ position:fixed; bottom:18px; left:24px; z-index:250; opacity:0; pointer-events:none; transition:opacity .3s; }
@@ -555,25 +559,39 @@
       return { start, stop };
   }
 
-  // 04 Reading Loop — text chunked into phrase-length pieces scattered
-  // across a large virtual space; the camera auto-advances on a loop.
+  // 04 Reading Loop — a growing word-association cascade: one word per
+  // row is "selected" (solid box) because it followed the previous
+  // selected word somewhere in the source text -- a tiny, literal model
+  // of the machine "making a connection". The rest of the row is filled
+  // with random words from the same vocabulary, left at a dimmer,
+  // unboxed opacity, standing in for the other words the system could
+  // have picked but didn't. Rows keep growing on a timer, the camera
+  // pans down to follow the newest one, and once it's grown enough it
+  // clears and starts again -- the loop the tool is named for.
   // Returns { start, stop }.
   function wrapCameraLinks(block){
       const raw = block.dataset.text.replace(/\s+/g, ' ').trim();
       const blockIdx = wrapCounter++;
-      const words = raw.split(' ');
 
-      const pieces = [];
-      let wi = 0, gi = 0;
-      while(wi < words.length){
-          const size = 5 + Math.floor(tpSeededRandom(blockIdx*1000 + gi) * 5);
-          pieces.push(words.slice(wi, wi + size).join(' '));
-          wi += size;
-          gi++;
+      const tokens = raw.toLowerCase().replace(/[^a-z0-9'\-\s]/g, '').split(/\s+/).filter(Boolean);
+      const vocab = Array.from(new Set(tokens));
+
+      // bigram map: for each word, which words actually followed it in
+      // the real text -- the closest thing to "relatedness" we can pull
+      // straight out of the tool's own description, no external model.
+      const bigrams = {};
+      for(let i=0; i<tokens.length-1; i++){
+          const a = tokens[i], b = tokens[i+1];
+          if(a === b) continue;
+          (bigrams[a] || (bigrams[a] = [])).push(b);
       }
-      if(pieces.length > 1 && pieces[pieces.length - 1].split(' ').length < 3){
-          const last = pieces.pop();
-          pieces[pieces.length - 1] += ' ' + last;
+
+      function pickNext(word, seed){
+          const neighbors = bigrams[word];
+          if(neighbors && neighbors.length){
+              return neighbors[Math.floor(tpSeededRandom(seed) * neighbors.length)];
+          }
+          return vocab[Math.floor(tpSeededRandom(seed) * vocab.length)];
       }
 
       block.innerHTML = "";
@@ -584,80 +602,80 @@
       viewport.appendChild(world);
       block.appendChild(viewport);
 
-      const WORLD_W = 4400, WORLD_H = 2600;
-      const cols = Math.ceil(Math.sqrt(pieces.length));
-      const rows = Math.ceil(pieces.length / cols);
-      const cellW = WORLD_W / cols, cellH = WORLD_H / rows;
+      const ROW_H = 44;
+      const ROW_DELAY = 1300;
+      const MAX_ROWS = 24;
 
-      const items = pieces.map((txt, pi)=>{
-          const el = document.createElement("span");
-          el.className = "rl-piece";
-          el.textContent = txt;
-
-          const col = pi % cols, row = Math.floor(pi / cols);
-          const seed = blockIdx*1000 + pi;
-          const x = col*cellW + cellW*0.15 + tpSeededRandom(seed + 0.1) * cellW*0.6;
-          const y = row*cellH + cellH*0.15 + tpSeededRandom(seed + 0.2) * cellH*0.6;
-
-          el.style.left = x.toFixed(1) + "px";
-          el.style.top  = y.toFixed(1) + "px";
-          world.appendChild(el);
-          return { el, x, y };
-      });
-
-      let current = 0;
-      const visited = new Set();
+      let rowIndex = 0;
+      let currentWord = vocab[0] || "reading";
       let autoTimer = null;
-      const AUTO_DELAY = 2800;
+      let running = false;
 
-      function panTo(idx){
-          const vp = viewport.getBoundingClientRect();
-          const target = items[idx];
-          const tx = vp.width/2 - target.x;
-          const ty = vp.height/2 - target.y;
-          world.style.transform = "translate(" + tx.toFixed(1) + "px, " + ty.toFixed(1) + "px)";
+      function growRow(){
+          const vpWidth = viewport.getBoundingClientRect().width || 600;
+          const seedBase = blockIdx*100000 + rowIndex*97;
+          const row = document.createElement("div");
+          row.className = "rl-row";
+          row.style.top = (rowIndex * ROW_H) + "px";
+
+          const count = 4 + Math.floor(tpSeededRandom(seedBase) * 4); // 4–7 words
+          const selPos = Math.floor(tpSeededRandom(seedBase + 1) * count);
+          const nextWord = pickNext(currentWord, seedBase + 2);
+
+          for(let i=0; i<count; i++){
+              const isSelected = i === selPos;
+              const seed = seedBase + i*3 + 10;
+              const word = isSelected ? nextWord : vocab[Math.floor(tpSeededRandom(seed) * vocab.length)];
+
+              const w = document.createElement("span");
+              w.textContent = word;
+              w.className = "rl-word " + (isSelected ? "selected" : "decoy");
+              if(!isSelected && tpSeededRandom(seed + 0.5) > 0.55){ w.style.fontStyle = "italic"; }
+
+              const x = (i / count) * vpWidth + tpSeededRandom(seed + 0.7) * (vpWidth / count) * 0.5 + 24;
+              const y = tpSeededRandom(seed + 0.9) * 18 - 9;
+              w.style.left = x.toFixed(1) + "px";
+              w.style.top  = y.toFixed(1) + "px";
+
+              row.appendChild(w);
+          }
+
+          world.appendChild(row);
+          currentWord = nextWord;
+          rowIndex++;
+
+          const vpHeight = viewport.getBoundingClientRect().height || 400;
+          const ty = vpHeight/2 - (rowIndex * ROW_H);
+          world.style.transform = "translate(0, " + ty.toFixed(1) + "px)";
+
+          if(!running) return;
+          if(rowIndex >= MAX_ROWS){
+              autoTimer = setTimeout(resetLoop, ROW_DELAY * 1.6);
+          } else {
+              autoTimer = setTimeout(growRow, ROW_DELAY);
+          }
       }
 
-      function setActive(idx){
-          items.forEach((it, i)=>{
-              it.el.classList.toggle("active", i === idx);
-              it.el.classList.toggle("visited", i !== idx && visited.has(i));
-          });
+      function resetLoop(){
+          if(!running) return;
+          world.style.transition = "none";
+          world.innerHTML = "";
+          rowIndex = 0;
+          currentWord = vocab[0] || "reading";
+          world.style.transform = "translate(0, 0)";
+          void world.offsetHeight; // force reflow so the next pan still transitions
+          world.style.transition = "";
+          autoTimer = setTimeout(growRow, ROW_DELAY);
       }
-
-      function clearAuto(){
-          if(autoTimer){ clearTimeout(autoTimer); autoTimer = null; }
-      }
-
-      function scheduleAuto(){
-          clearAuto();
-          autoTimer = setTimeout(()=>{
-              activate((current + 1) % items.length);
-          }, AUTO_DELAY);
-      }
-
-      function activate(idx){
-          current = idx;
-          visited.add(idx);
-          panTo(idx);
-          setActive(idx);
-          scheduleAuto();
-      }
-
-      items.forEach((it, i)=>{
-          it.el.addEventListener("click", ()=>{
-              if(i !== current) return;
-              activate((current + 1) % items.length);
-          });
-      });
 
       function start(){
-          visited.clear();
-          activate(0);
+          running = true;
+          resetLoop();
       }
 
       function stop(){
-          clearAuto();
+          running = false;
+          clearTimeout(autoTimer);
       }
 
       return { start, stop };
