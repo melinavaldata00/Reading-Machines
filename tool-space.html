@@ -592,7 +592,7 @@ body.page-is-white .open-page:hover{
     <div class="tp-head">
       <span class="tp-title">Anti Type</span>
     </div>
-    <div class="tp-text" data-style="antitype-write" data-text="Each glyph gets pushed until OCR can no longer recognize it, becoming part of a typeface that stays legible to your eyes but not to the machine that shaped it."></div>
+    <div class="tp-text" data-style="antitype-write" data-text="Every letter has a point at which a machine stops recognizing it. Not because the shape has disappeared, it is still there visible to a human eye, but because enough of its detail has been removed that the system can no longer produce a confident guess about what it is."></div>
   </section>
 
   <section class="tool-page" data-idx="3" data-tool-src="tools/co-read.html" data-tool-name="Reading Loop">
@@ -802,7 +802,7 @@ function wrapAntiTypeWrite(block){
             if(i >= text.length){ stop(); return; }
             content.textContent += text[i];
             i++;
-        }, 45);
+        }, 130);
     }
 
     return { start, stop };
