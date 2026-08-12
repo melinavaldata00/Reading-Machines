@@ -618,7 +618,7 @@ html,body{
     <div class="tp-head">
       <span class="tp-title">OCR Skeleton</span>
     </div>
-    <div class="tp-text" data-style="floatboxes" data-text="Before recognizing a single letter, an OCR system does something simpler first: it figures out where something might be written. The page is divided into rectangles, bounding boxes, drawn around clusters of dark pixels the system thinks could be words. Only after that does it try to guess what each word actually says, along with a number for how confident it is about that guess."></div>
+    <div class="tp-text" data-style="floatboxes" data-text="Before recognizing a single letter, an OCR system does something simpler first: it figures out where something might be written. [[The page is divided]] into rectangles, bounding boxes, drawn around clusters of dark pixels the system thinks could be words. Only after that does it try to guess what each word actually says, along with a number for how confident it is about that guess."></div>
   </section>
 
   <section class="tool-page" data-idx="1" data-tool-src="tools/outline.html" data-tool-name="Blind Contour">
@@ -679,27 +679,62 @@ let wrapCounter = 0;
 // Only the first box starts visible; clicking a box reveals the next one,
 // placed elsewhere in the space — the guesses arrive one at a time.
 function wrapFloatBoxes(block){
-    const text = block.dataset.text.replace(/\s+/g, ' ').trim();
+    const raw = block.dataset.text.replace(/\s+/g, ' ').trim();
     const blockIdx = wrapCounter++;
-    const words = text.split(' ');
 
-    // group words into chunks of 2-3 (never a single word — otherwise there
-    // are simply too many boxes to click through), seeded so it's stable
-    // across re-renders. The very first box always opens on the first two
-    // words, then the rest of the text is grouped automatically.
-    const chunks = [];
-    let wi = 0, gi = 0;
-    if(words.length){
-        const firstSize = Math.min(2, words.length);
-        chunks.push(words.slice(0, firstSize).join(' '));
-        wi = firstSize;
+    // wrapping a phrase in [[ ]] inside data-text forces it to always land
+    // in one box together, instead of being split up by the automatic
+    // 2-3 word grouping below (e.g. "[[The page is divided]]").
+    const units = [];
+    const forcedRe = /\[\[(.*?)\]\]/g;
+    let lastIndex = 0, m;
+    const pushWords = str=>{
+        str.trim().split(' ').filter(Boolean).forEach(w=> units.push({ t: w, forced: false }));
+    };
+    while((m = forcedRe.exec(raw))){
+        pushWords(raw.slice(lastIndex, m.index));
+        units.push({ t: m[1].trim(), forced: true });
+        lastIndex = forcedRe.lastIndex;
     }
-    while(wi < words.length){
+    pushWords(raw.slice(lastIndex));
+
+    // group units into chunks of 2-3 (never a single plain word — otherwise
+    // there are simply too many boxes to click through), seeded so it's
+    // stable across re-renders. The very first box always opens on the
+    // first two words (or the first forced group, if the text starts with
+    // one), then the rest is grouped automatically. A forced group is
+    // never merged with neighboring words — it always gets its own box.
+    const chunks = [];
+    let ui = 0, gi = 0;
+
+    if(units.length){
+        if(units[0].forced){
+            chunks.push(units[0].t);
+            ui = 1;
+        } else {
+            const take = [];
+            while(ui < units.length && !units[ui].forced && take.length < 2){
+                take.push(units[ui].t); ui++;
+            }
+            chunks.push(take.join(' '));
+        }
+    }
+
+    while(ui < units.length){
+        if(units[ui].forced){
+            chunks.push(units[ui].t);
+            ui++;
+            continue;
+        }
         const size = 2 + Math.floor(seededRandom(blockIdx*1000 + gi) * 2); // 2–3
-        chunks.push(words.slice(wi, wi + size).join(' '));
-        wi += size;
+        const take = [];
+        while(ui < units.length && !units[ui].forced && take.length < size){
+            take.push(units[ui].t); ui++;
+        }
+        chunks.push(take.join(' '));
         gi++;
     }
+
     // a trailing single-word chunk (leftover from the 2-3 grouping not
     // dividing evenly) gets folded into the previous box instead of
     // getting a whole box to itself.
