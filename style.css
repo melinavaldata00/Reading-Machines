@@ -39,7 +39,7 @@ body{
 /* appended after it) scrolls in whole-screen jumps, never resting        */
 /* somewhere in between two sections. mandatory + scroll-snap-stop:always */
 /* means even a fast flick can't skip past a section unvisited.           */
-html{
+html, body{
     scroll-snap-type: y mandatory;
 }
 
