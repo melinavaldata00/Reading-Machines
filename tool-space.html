@@ -179,11 +179,13 @@ body.page-is-white .open-page:hover{
   color:#ffffff;
 }
 
-/* Opening a tool is just a layer on top of whichever presentation page    */
-/* you're on — full-bleed iframe, a small close control and the guide      */
-/* trigger floating over it. No sidebar, no list of the other tools: each  */
-/* presentation page already owns its own GO TO TOOL button, so there's    */
-/* no need to reference the other three from inside the layer itself.      */
+/* Opening a tool slides a layer up from the bottom instead of covering    */
+/* the full screen — it stops short of the top edge, on purpose, so the    */
+/* current presentation page's title stays visible above it. Full-bleed    */
+/* iframe, a small close control and the guide trigger floating over it.   */
+/* No sidebar, no list of the other tools: each presentation page already  */
+/* owns its own GO TO TOOL button, so there's no need to reference the     */
+/* other three from inside the layer itself.                               */
 #tool-overlay{
   /* scoped white/brown override — the layer reads white/brown while a     */
   /* tool is open; the canvas outside stays on the dark palette, since      */
@@ -194,15 +196,22 @@ body.page-is-white .open-page:hover{
   --text-faint: rgba(31,19,13,.22);
 
   position:fixed;
-  inset:0;
+  left:0;
+  right:0;
+  bottom:0;
+  top:170px; /* leaves the page title, sitting up at top:40px, visible above */
   z-index:200;
-  display:none;
   background:var(--bg);
   color:var(--text);
+  border-top:1px solid var(--text-dim);
+  transform:translateY(100%);
+  transition:transform .5s cubic-bezier(.65,0,.35,1);
+  pointer-events:none;
 }
 
 #tool-overlay.show{
-  display:block;
+  transform:translateY(0);
+  pointer-events:auto;
 }
 
 /* thin floating strip: current tool's name, its guide trigger, and the   */
