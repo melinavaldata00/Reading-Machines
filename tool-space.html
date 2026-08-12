@@ -286,23 +286,23 @@ html,body{
 
 #tool-guide-btn{
   background:none;
-  border:1px solid var(--text-dim);
-  border-radius:14px;
-  color:var(--text);
+  border:none;
+  color:var(--text-dim);
   font-family:inherit;
   font-size:11px;
-  letter-spacing:.08em;
+  letter-spacing:.05em;
   cursor:pointer;
-  padding:6px 10px;
-  opacity:.7;
-  transition:opacity .2s, background .2s, color .2s, border-color .2s;
+  padding:0;
+  margin-top:14px;
+  text-decoration:underline;
+  text-underline-offset:2px;
+  opacity:.85;
+  transition:opacity .2s, color .2s;
   align-self:flex-start;
 }
 #tool-guide-btn:hover{
   opacity:1;
-  background:#2bff00;
-  color:#1f130d;
-  border-color:#2bff00;
+  color:var(--text);
 }
 #tool-guide-btn:disabled{
   opacity:.3;
@@ -565,9 +565,9 @@ html,body{
       <button class="tool-link" data-tool-src="tools/outline.html" data-tool-name="Blind Contour"><span class="tool-num">02</span><span class="tool-label">— Blind Contour</span></button>
       <button class="tool-link" data-tool-src="tools/anti-ocr.html" data-tool-name="Anti Type"><span class="tool-num">03</span><span class="tool-label">— Anti Type</span></button>
       <button class="tool-link" data-tool-src="tools/co-read.html" data-tool-name="Reading Loop"><span class="tool-num">04</span><span class="tool-label">— Reading in loop</span></button>
+      <button id="tool-guide-btn" disabled>how does it work?</button>
     </nav>
     <div id="tool-sidebar-hint">click a tool to switch — the current one keeps loading on the right</div>
-    <button id="tool-guide-btn" disabled>how does it work?</button>
     <button id="tool-overlay-close">← back to space</button>
   </div>
   <div id="tool-main">
