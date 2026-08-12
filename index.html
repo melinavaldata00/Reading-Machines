@@ -260,7 +260,6 @@
     <button class="index-num" data-idx="3">04</button>
   </div>
 
-  <div id="presenter-sentinel"></div>
   <div id="presenter">
 
     <section class="tool-page tp-float" data-idx="0" data-tool-src="tools/position-zero.html" data-tool-name="OCR Skeleton">
@@ -723,16 +722,20 @@
   pages.forEach(p=> pageObserver.observe(p));
 
   // fixed presenter chrome (index-bar, next, go-to-tool) stays hidden
-  // while on the landing, fades in once the presenter section is
-  // actually reachable on screen -- also used by style.css to fade out
-  // the landing's own STATE/column-toggle chrome in reverse.
-  const presenterSentinel = document.getElementById("presenter-sentinel");
+  // while on the landing, fades in once you've scrolled off it -- also
+  // used by style.css to fade out the landing's own STATE/column-toggle
+  // chrome in reverse. Watches .landing itself (a real, full-height
+  // element) via isIntersecting rather than a zero-height sentinel div
+  // compared against boundingClientRect -- the sentinel had no area, so
+  // browsers weren't reliably re-firing the callback on the way back up,
+  // leaving in-presenter stuck on once you'd scrolled past it once.
+  const landingEl = document.querySelector(".landing");
   const presenterObserver = new IntersectionObserver((entries)=>{
       entries.forEach(entry=>{
-          document.body.classList.toggle("in-presenter", entry.boundingClientRect.top < window.innerHeight);
+          document.body.classList.toggle("in-presenter", !entry.isIntersecting);
       });
   }, { threshold: [0] });
-  presenterObserver.observe(presenterSentinel);
+  presenterObserver.observe(landingEl);
 
   /* ------------------------------ */
   /* SECTION-JUMP SCROLL — the whole page (landing, then the 4 tool        */
