@@ -119,7 +119,13 @@ html,body{
   cursor:pointer;
   padding:0;
   opacity:.4;
-  transition:opacity .2s;
+  transition:opacity .2s, color .2s;
+}
+
+/* on the white OCR Skeleton page the index numbers switch to the same    */
+/* brown used by every button on that page, instead of green-on-white.    */
+#index-bar.on-white .index-num{
+  color:#1f130d;
 }
 
 .index-num:hover{
@@ -502,7 +508,7 @@ html,body{
 <a href="tools/publication.html" id="publication-link">PUBLICATION</a>
 <a href="https://melinavaldata00.github.io/RMDocumentation/" id="go-to-docs" target="_blank" rel="noopener">documentation →</a>
 
-<div id="index-bar">
+<div id="index-bar" class="on-white">
   <button class="index-num active" data-idx="0">01</button>
   <button class="index-num" data-idx="1">02</button>
   <button class="index-num" data-idx="2">03</button>
@@ -771,12 +777,14 @@ document.querySelectorAll(".tp-text").forEach(renderReadingSystem);
 
 const pages       = Array.from(document.querySelectorAll(".tool-page"));
 const indexBtns   = Array.from(document.querySelectorAll(".index-num"));
+const indexBar    = document.getElementById("index-bar");
 let currentPage   = 0;
 
 function showPage(idx){
     currentPage = ((idx % pages.length) + pages.length) % pages.length;
     pages.forEach((p, i)=> p.classList.toggle("active", i === currentPage));
     indexBtns.forEach((b, i)=> b.classList.toggle("active", i === currentPage));
+    indexBar.classList.toggle("on-white", pages[currentPage].classList.contains("tp-float"));
 }
 
 document.getElementById("btn-next").addEventListener("click", ()=>{
