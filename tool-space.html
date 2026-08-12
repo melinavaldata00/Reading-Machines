@@ -496,28 +496,62 @@ body.page-is-white .open-page:hover{
   50%{ opacity:0; }
 }
 
-/* ---- 04 Reading Loop — two layers of the same text, one crisp, one     */
-/* ghosted and slowly drifting — clean text for the machine, textured      */
-/* residue for the eye, exactly as the tool itself produces.               */
-.tp-text[data-style="ghost"]{
-  position:relative;
+/* ---- 04 Reading Loop — the text is broken into phrase-length pieces     */
+/* scattered across a small pannable space. Only the current piece is a   */
+/* live link; clicking it pans the "camera" to wherever the next piece    */
+/* sits, so reading becomes a sequence of jumps instead of one continuous */
+/* paragraph. The last piece links back to the first — the loop. Stays    */
+/* on the site's normal dark/green palette (this page never goes white),  */
+/* but reuses the same full-bleed structural idea as the white pages.     */
+.tool-page.tp-rl-camera{
+  padding:0;
+  overflow:hidden;
 }
-.ghost-crisp{
-  position:relative;
-  z-index:1;
+.tp-rl-camera .tp-head{
+  position:absolute;
+  top:40px;
+  left:24px;
+  z-index:2;
+  margin:0;
 }
-.ghost-layer{
+.tp-rl-camera .tp-text{
   position:absolute;
   inset:0;
-  z-index:0;
-  color:var(--text-dim);
-  opacity:.5;
-  animation:ghostDrift 7s ease-in-out infinite alternate;
-  pointer-events:none;
 }
-@keyframes ghostDrift{
-  0%   { transform:translate(0,0); }
-  100% { transform:translate(4px, 3px); }
+.rl-viewport{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+}
+.rl-world{
+  position:absolute;
+  top:0;
+  left:0;
+  will-change:transform;
+  transition:transform .9s cubic-bezier(.65,0,.35,1);
+}
+.rl-piece{
+  position:absolute;
+  max-width:360px;
+  font-family:"ABC Favorit", monospace;
+  font-size:20px;
+  line-height:1.55;
+  color:var(--text-dim);
+  opacity:.45;
+  transition:color .3s ease, opacity .3s ease;
+}
+.rl-piece.visited{
+  opacity:.3;
+}
+.rl-piece.active{
+  color:var(--text);
+  opacity:1;
+  cursor:pointer;
+  text-decoration:underline;
+  text-underline-offset:5px;
+}
+.rl-piece.active:hover{
+  opacity:.7;
 }
 
 /* ---- NEXT / GO TO TOOL — fixed corner controls for moving through the  */
@@ -586,14 +620,12 @@ body.page-is-white .open-page:hover{
     <div class="tp-text" data-style="antitype-write" data-text="Every letter has a point at which a machine stops recognizing it. Not because the shape has disappeared, it is still there visible to a human eye, but because enough of its detail has been removed that the system can no longer produce a confident guess about what it is."></div>
   </section>
 
-  <section class="tool-page" data-idx="3" data-tool-src="tools/co-read.html" data-tool-name="Reading Loop">
-    <div class="tp-inner">
-      <div class="tp-head">
-        <span class="tp-num">04</span>
-        <span class="tp-title">Reading Loop</span>
-      </div>
-      <div class="tp-text" data-style="ghost" data-text="Read, misread, correct, read again. Each pass leaves something behind — clean text for the machine, textured residue for the eye. Two layers, one page, two different readers."></div>
+  <section class="tool-page tp-rl-camera" data-idx="3" data-tool-src="tools/co-read.html" data-tool-name="Reading Loop">
+    <div class="tp-head">
+      <span class="tp-num">04</span>
+      <span class="tp-title">Reading Loop</span>
     </div>
+    <div class="tp-text" data-style="camera-links" data-text="what happens when a machine reads what is left from its previous reading? The tool takes an image as input and runs it through OCR, producing a typeset document — each word placed, sized, and positioned according to what the system found."></div>
   </section>
 
 </div>
@@ -857,22 +889,102 @@ function wrapAntiTypeWrite(block){
     return { start, stop };
 }
 
-// 04 Reading Loop — the same text rendered twice: one crisp layer for the
-// machine, one dimmer layer drifting slowly behind it for the eye.
-function wrapGhost(block){
-    const text = block.dataset.text;
+// 04 Reading Loop — the text is chunked into phrase-length pieces (5-9
+// words), scattered across a small virtual space. Only the current piece
+// is a live link; clicking it pans the "camera" (a translated .rl-world)
+// so the next piece lands centered in the viewport. The last piece links
+// back to the first, so the sequence loops. Returns { start, stop } —
+// start() resets the camera to piece 0 and clears which pieces have been
+// visited, same pattern as Anti Type's typing hooks.
+function wrapCameraLinks(block){
+    const raw = block.dataset.text.replace(/\s+/g, ' ').trim();
+    const blockIdx = wrapCounter++;
+    const words = raw.split(' ');
 
-    const crisp = document.createElement("span");
-    crisp.className = "ghost-crisp";
-    crisp.textContent = text;
+    // chunk into readable phrase-length pieces, seeded so it's stable
+    const pieces = [];
+    let wi = 0, gi = 0;
+    while(wi < words.length){
+        const size = 5 + Math.floor(seededRandom(blockIdx*1000 + gi) * 5); // 5–9
+        pieces.push(words.slice(wi, wi + size).join(' '));
+        wi += size;
+        gi++;
+    }
+    // a trailing tiny leftover gets folded into the previous piece
+    if(pieces.length > 1 && pieces[pieces.length - 1].split(' ').length < 3){
+        const last = pieces.pop();
+        pieces[pieces.length - 1] += ' ' + last;
+    }
 
-    const ghost = document.createElement("span");
-    ghost.className = "ghost-layer";
-    ghost.textContent = text;
-    ghost.setAttribute("aria-hidden", "true");
+    block.innerHTML = "";
+    const viewport = document.createElement("div");
+    viewport.className = "rl-viewport";
+    const world = document.createElement("div");
+    world.className = "rl-world";
+    viewport.appendChild(world);
+    block.appendChild(viewport);
 
-    block.appendChild(crisp);
-    block.appendChild(ghost);
+    const WORLD_W = 1500, WORLD_H = 900;
+    const cols = Math.ceil(Math.sqrt(pieces.length));
+    const rows = Math.ceil(pieces.length / cols);
+    const cellW = WORLD_W / cols, cellH = WORLD_H / rows;
+
+    const items = pieces.map((txt, pi)=>{
+        const el = document.createElement("span");
+        el.className = "rl-piece";
+        el.textContent = txt;
+
+        const col = pi % cols, row = Math.floor(pi / cols);
+        const seed = blockIdx*1000 + pi;
+        const x = col*cellW + cellW*0.15 + seededRandom(seed + 0.1) * cellW*0.6;
+        const y = row*cellH + cellH*0.15 + seededRandom(seed + 0.2) * cellH*0.6;
+
+        el.style.left = x.toFixed(1) + "px";
+        el.style.top  = y.toFixed(1) + "px";
+        world.appendChild(el);
+        return { el, x, y };
+    });
+
+    let current = 0;
+    const visited = new Set();
+
+    function panTo(idx){
+        const vp = viewport.getBoundingClientRect();
+        const target = items[idx];
+        const tx = vp.width/2 - target.x;
+        const ty = vp.height/2 - target.y;
+        world.style.transform = "translate(" + tx.toFixed(1) + "px, " + ty.toFixed(1) + "px)";
+    }
+
+    function setActive(idx){
+        items.forEach((it, i)=>{
+            it.el.classList.toggle("active", i === idx);
+            it.el.classList.toggle("visited", i !== idx && visited.has(i));
+        });
+    }
+
+    function activate(idx){
+        current = idx;
+        visited.add(idx);
+        panTo(idx);
+        setActive(idx);
+    }
+
+    items.forEach((it, i)=>{
+        it.el.addEventListener("click", ()=>{
+            if(i !== current) return; // only the active piece is a live link
+            activate((current + 1) % items.length); // last piece loops back to the first
+        });
+    });
+
+    function start(){
+        visited.clear();
+        activate(0);
+    }
+
+    function stop(){}
+
+    return { start, stop };
 }
 
 function renderReadingSystem(block){
@@ -884,7 +996,11 @@ function renderReadingSystem(block){
             pageHooks[hooks] = wrapAntiTypeWrite(block);
             break;
         }
-        case "ghost":   wrapGhost(block);   break;
+        case "camera-links": {
+            const idx = block.closest(".tool-page").dataset.idx;
+            pageHooks[idx] = wrapCameraLinks(block);
+            break;
+        }
     }
 }
 
