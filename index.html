@@ -559,15 +559,16 @@
       return { start, stop };
   }
 
-  // 04 Reading Loop — a growing word-association cascade: one word per
-  // row is "selected" (solid box) because it followed the previous
-  // selected word somewhere in the source text -- a tiny, literal model
-  // of the machine "making a connection". The rest of the row is filled
-  // with random words from the same vocabulary, left at a dimmer,
-  // unboxed opacity, standing in for the other words the system could
-  // have picked but didn't. Rows keep growing on a timer, the camera
-  // pans down to follow the newest one, and once it's grown enough it
-  // clears and starts again -- the loop the tool is named for.
+  // 04 Reading Loop — a growing word-association cascade: one short
+  // PHRASE per row is "selected" (solid box) because it's the real
+  // continuation of the previous selected phrase somewhere in the
+  // source text -- a tiny, literal model of the machine "making a
+  // connection". The rest of the row is filled with other short phrases
+  // pulled at random from the same text, left at a dimmer, unboxed
+  // opacity, standing in for the other paths the system could have
+  // taken but didn't. Rows keep growing on a timer, the camera pans
+  // down to follow the newest one, and once it's grown enough it clears
+  // and starts again -- the loop the tool is named for.
   // Returns { start, stop }.
   function wrapCameraLinks(block){
       const raw = block.dataset.text.replace(/\s+/g, ' ').trim();
@@ -576,22 +577,40 @@
       const tokens = raw.toLowerCase().replace(/[^a-z0-9'\-\s]/g, '').split(/\s+/).filter(Boolean);
       const vocab = Array.from(new Set(tokens));
 
-      // bigram map: for each word, which words actually followed it in
-      // the real text -- the closest thing to "relatedness" we can pull
-      // straight out of the tool's own description, no external model.
-      const bigrams = {};
-      for(let i=0; i<tokens.length-1; i++){
-          const a = tokens[i], b = tokens[i+1];
-          if(a === b) continue;
-          (bigrams[a] || (bigrams[a] = [])).push(b);
+      // index every position a word occurs at, so a "connection" can
+      // jump to any real occurrence of the current word and continue
+      // with whatever actually follows it in the text -- multiple words
+      // at once, not just one at a time, so each step reads as a small
+      // phrase instead of an isolated, hard-to-parse token.
+      const occurrences = {};
+      tokens.forEach((t, i)=> (occurrences[t] || (occurrences[t] = [])).push(i));
+
+      function phraseAt(startIdx, len){
+          return tokens.slice(startIdx, startIdx + len).join(' ') || tokens[0];
       }
 
-      function pickNext(word, seed){
-          const neighbors = bigrams[word];
-          if(neighbors && neighbors.length){
-              return neighbors[Math.floor(tpSeededRandom(seed) * neighbors.length)];
+      // the selected phrase continues from a real occurrence of the
+      // current word -- PHRASE_LEN words long, taken verbatim from the text.
+      function pickNextPhrase(word, seed){
+          const occ = occurrences[word];
+          let startIdx;
+          if(occ && occ.length){
+              const at = occ[Math.floor(tpSeededRandom(seed) * occ.length)] + 1;
+              startIdx = at < tokens.length ? at : 0;
+          } else {
+              startIdx = Math.floor(tpSeededRandom(seed) * tokens.length);
           }
-          return vocab[Math.floor(tpSeededRandom(seed) * vocab.length)];
+          const len = 3 + Math.floor(tpSeededRandom(seed + 0.31) * 3); // 3–5 words
+          return phraseAt(startIdx, len);
+      }
+
+      // a decoy phrase is just some other random stretch of the same
+      // text -- unrelated to the current word, but still real, readable
+      // language rather than a single loose word.
+      function pickDecoyPhrase(seed){
+          const startIdx = Math.floor(tpSeededRandom(seed) * tokens.length);
+          const len = 2 + Math.floor(tpSeededRandom(seed + 0.17) * 3); // 2–4 words
+          return phraseAt(startIdx, len);
       }
 
       block.innerHTML = "";
@@ -602,9 +621,9 @@
       viewport.appendChild(world);
       block.appendChild(viewport);
 
-      const ROW_H = 44;
-      const ROW_DELAY = 1300;
-      const MAX_ROWS = 24;
+      const ROW_H = 56;
+      const ROW_DELAY = 1500;
+      const MAX_ROWS = 18;
 
       let rowIndex = 0;
       let currentWord = vocab[0] || "reading";
@@ -618,21 +637,21 @@
           row.className = "rl-row";
           row.style.top = (rowIndex * ROW_H) + "px";
 
-          const count = 4 + Math.floor(tpSeededRandom(seedBase) * 4); // 4–7 words
+          const count = 2 + Math.floor(tpSeededRandom(seedBase) * 2); // 2–3 phrases per row
           const selPos = Math.floor(tpSeededRandom(seedBase + 1) * count);
-          const nextWord = pickNext(currentWord, seedBase + 2);
+          const nextPhrase = pickNextPhrase(currentWord, seedBase + 2);
 
           for(let i=0; i<count; i++){
               const isSelected = i === selPos;
               const seed = seedBase + i*3 + 10;
-              const word = isSelected ? nextWord : vocab[Math.floor(tpSeededRandom(seed) * vocab.length)];
+              const phrase = isSelected ? nextPhrase : pickDecoyPhrase(seed);
 
               const w = document.createElement("span");
-              w.textContent = word;
+              w.textContent = phrase;
               w.className = "rl-word " + (isSelected ? "selected" : "decoy");
               if(!isSelected && tpSeededRandom(seed + 0.5) > 0.55){ w.style.fontStyle = "italic"; }
 
-              const x = (i / count) * vpWidth + tpSeededRandom(seed + 0.7) * (vpWidth / count) * 0.5 + 24;
+              const x = (i / count) * vpWidth + tpSeededRandom(seed + 0.7) * (vpWidth / count) * 0.4 + 24;
               const y = tpSeededRandom(seed + 0.9) * 18 - 9;
               w.style.left = x.toFixed(1) + "px";
               w.style.top  = y.toFixed(1) + "px";
@@ -641,7 +660,10 @@
           }
 
           world.appendChild(row);
-          currentWord = nextWord;
+          // keep the chain going from the last word of whatever phrase
+          // was actually selected this row.
+          const nextWords = nextPhrase.split(' ');
+          currentWord = nextWords[nextWords.length - 1] || currentWord;
           rowIndex++;
 
           const vpHeight = viewport.getBoundingClientRect().height || 400;
