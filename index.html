@@ -799,12 +799,14 @@
       jumpCooldown = setTimeout(()=>{ jumping = false; }, 900);
   }
 
-  window.addEventListener("wheel", (e)=>{
+  function handleWheel(e){
       e.preventDefault();
       if(jumping) return;
       if(e.deltaY > 10) jumpTo(sectionIndex + 1);
       else if(e.deltaY < -10) jumpTo(sectionIndex - 1);
-  }, { passive:false });
+  }
+
+  window.addEventListener("wheel", handleWheel, { passive:false });
 
   document.getElementById("btn-next").addEventListener("click", ()=>{
       const next = (currentPage + 1) % pages.length;
@@ -885,6 +887,22 @@
   window.addEventListener("focus", ()=>{
       if(antiTypeFrame.classList.contains("show")) clearAntiTypeUpdateFlag();
   });
+
+  // when the tool overlay is open, the mouse is sitting over its iframe --
+  // wheel events fire on THAT document, not this one, so they never reach
+  // handleWheel above and scrolling appeared to do nothing while a tool
+  // was open. Attach the same handler inside each tool iframe too
+  // (same-origin, so this is allowed) once it's loaded, so scrolling over
+  // an open tool still jumps sections and closes the overlay along the way.
+  function attachWheelToFrame(frame){
+      try{
+          if(frame.contentWindow){
+              frame.contentWindow.addEventListener("wheel", handleWheel, { passive:false });
+          }
+      } catch(err){ /* cross-origin or not yet loaded -- ignore */ }
+  }
+  toolOverlayFrame.addEventListener("load", ()=> attachWheelToFrame(toolOverlayFrame));
+  antiTypeFrame.addEventListener("load", ()=> attachWheelToFrame(antiTypeFrame));
 
   function closeToolOverlay(){
       toolOverlay.classList.remove("show");
