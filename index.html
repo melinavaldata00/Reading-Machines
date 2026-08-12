@@ -752,6 +752,29 @@
   let jumping = false;
   let jumpCooldown = null;
 
+  // explicit initial sync -- if the page loads already scrolled down
+  // (e.g. the browser restoring your previous scroll position on a
+  // refresh), don't rely solely on the observers' first async callback
+  // to get body.in-presenter / the active page right; check directly,
+  // synchronously, against where the page actually is right now.
+  function syncScrollState(){
+      const lr = landingEl.getBoundingClientRect();
+      const landingVisible = lr.bottom > 0 && lr.top < window.innerHeight;
+      document.body.classList.toggle("in-presenter", !landingVisible);
+      sectionIndex = landingVisible ? 0 : 1 + currentPage;
+
+      pages.forEach((p, i)=>{
+          const r = p.getBoundingClientRect();
+          const mid = window.innerHeight / 2;
+          if(r.top <= mid && r.bottom >= mid){
+              setCurrentPage(i);
+              sectionIndex = 1 + i;
+          }
+      });
+  }
+  syncScrollState();
+  window.addEventListener("load", syncScrollState);
+
   function jumpTo(idx){
       idx = Math.max(0, Math.min(allSections.length - 1, idx));
       sectionIndex = idx;
