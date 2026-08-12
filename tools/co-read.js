@@ -683,9 +683,18 @@ dropEl.addEventListener('drop', e => {
 // grayscale using a luminance inversion trick that helps Tesseract
 // separate text from vivid backgrounds.
 function preprocessImageForOCR(img) {
-  const scale = 2; // upscale for better recognition
-  const w = img.naturalWidth  * scale || img.width  * scale;
-  const h = img.naturalHeight * scale || img.height * scale;
+  const srcW = img.naturalWidth  || img.width;
+  const srcH = img.naturalHeight || img.height;
+  // upscale small images (helps Tesseract read small text) but cap the
+  // processed size for large ones — a real phone photo is easily 12+
+  // megapixels, and doubling that would mean tens of millions of pixels
+  // to allocate and binarize for no real accuracy benefit. Target roughly
+  // 2200px on the long edge either way.
+  const TARGET_LONG_EDGE = 2200;
+  const longEdge = Math.max(srcW, srcH);
+  const scale = Math.min(2, TARGET_LONG_EDGE / longEdge) || 1;
+  const w = Math.round(srcW * scale);
+  const h = Math.round(srcH * scale);
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   const ctx = c.getContext('2d', { willReadFrequently: true });
@@ -717,18 +726,35 @@ function preprocessImageForOCR(img) {
     d[i] = d[i+1] = d[i+2] = v;
   }
 
-  // 3. adaptive binarization in 32px blocks
+  // 3. adaptive binarization in 32px blocks — via an integral image
+  // (summed-area table), so each pixel's local mean is a handful of array
+  // look-ups instead of resampling a ~65x65 window from scratch. The old
+  // per-pixel nested loop was O(w*h*260): fine on a small test image, but
+  // on a real, unresized phone photo (e.g. 3000x4000, doubled to 6000x8000
+  // by the upscale above = 48 megapixels) it took 20-30+ seconds of
+  // uninterrupted main-thread work — long enough that the tab reads as
+  // frozen and the page can look like it silently failed. This produces
+  // the exact same result, in well under a second even at that size.
   const block = 32;
+  const integral = new Float64Array((w + 1) * (h + 1));
+  for (let y = 0; y < h; y++) {
+    let rowSum = 0;
+    for (let x = 0; x < w; x++) {
+      rowSum += d[(y * w + x) * 4];
+      integral[(y + 1) * (w + 1) + (x + 1)] = integral[y * (w + 1) + (x + 1)] + rowSum;
+    }
+  }
   const out = new Uint8ClampedArray(d.length);
   for (let y = 0; y < h; y++) {
+    const y0 = Math.max(0, y - block), y1 = Math.min(h - 1, y + block);
     for (let x = 0; x < w; x++) {
-      let sum = 0, cnt = 0;
-      for (let by = Math.max(0, y-block); by <= Math.min(h-1, y+block); by += 4) {
-        for (let bx = Math.max(0, x-block); bx <= Math.min(w-1, x+block); bx += 4) {
-          sum += d[(by*w+bx)*4]; cnt++;
-        }
-      }
-      const mean = sum / cnt;
+      const x0 = Math.max(0, x - block), x1 = Math.min(w - 1, x + block);
+      const A = integral[y0 * (w + 1) + x0];
+      const B = integral[y0 * (w + 1) + (x1 + 1)];
+      const C = integral[(y1 + 1) * (w + 1) + x0];
+      const D = integral[(y1 + 1) * (w + 1) + (x1 + 1)];
+      const cnt = (x1 - x0 + 1) * (y1 - y0 + 1);
+      const mean = (D - B - C + A) / cnt;
       const idx = (y*w+x)*4;
       const val = d[idx] < mean - 8 ? 0 : 255;
       out[idx] = out[idx+1] = out[idx+2] = val; out[idx+3] = 255;
