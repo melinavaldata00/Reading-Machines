@@ -480,6 +480,10 @@ body.page-is-white .open-page:hover{
   color:#1f130d;
   white-space:pre-wrap;
   word-wrap:break-word;
+  cursor:text;
+}
+.at-content[contenteditable="true"]{
+  outline:none;
 }
 .at-cursor{
   display:inline-block;
@@ -748,8 +752,11 @@ function wrapOutline(block){
 // 03 Anti Type — a plain text-file panel where the description types
 // itself out letter by letter, set in the real exported Anti-Type font
 // (same .otf the tool itself exports), with a blinking cursor at the end.
+// Clicking the text hands over the keyboard: the auto-typing stops and
+// the panel becomes directly editable, same font, same live rendering.
 // Returns { start, stop } so the page-switching logic can (re)play the
-// typing each time this page becomes active, and stop it when you leave.
+// typing each time this page becomes active, and stop it when you leave —
+// which also resets any text the visitor typed back to the original copy.
 function wrapAntiTypeWrite(block){
     const text = block.dataset.text;
     block.innerHTML = "";
@@ -771,13 +778,36 @@ function wrapAntiTypeWrite(block){
     block.appendChild(panel);
 
     let timer = null;
+    let editing = false;
 
     function stop(){
         if(timer){ clearInterval(timer); timer = null; }
     }
 
+    function beginEditing(){
+        if(editing) return;
+        editing = true;
+        stop();
+        cursor.style.display = "none";
+        content.contentEditable = "true";
+        content.spellcheck = false;
+        content.focus();
+        // caret at the end of whatever's already been typed, not the start
+        const range = document.createRange();
+        range.selectNodeContents(content);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    body.addEventListener("click", beginEditing);
+
     function start(){
         stop();
+        editing = false;
+        content.contentEditable = "false";
+        cursor.style.display = "";
         content.textContent = "";
         let i = 0;
         timer = setInterval(()=>{
