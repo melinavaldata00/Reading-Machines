@@ -475,6 +475,19 @@ html,body{
   opacity:.85;
 }
 
+/* OCR Skeleton's own reading system: one word per full-width row, each  */
+/* bordered like a bounding box, staggered left/right row to row — the   */
+/* fragment literally looks like OCR output: a stack of boxes, one guess */
+/* at a time, instead of a normal paragraph.                             */
+.frag-boxrow{
+  display:flex;
+  width:100%;
+  border-bottom:1px solid var(--text-faint);
+  padding:5px 0;
+}
+.frag-boxrow:first-child{ border-top:1px solid var(--text-faint); }
+.box-word{ white-space:nowrap; }
+
 .letter{
   display:inline-block;
   will-change:transform, opacity;
@@ -608,8 +621,7 @@ html,body{
         <div class="frag-title-vert" data-title="OCR Skeleton"></div>
         <div class="frag-body">
           <div class="fragment-tag">01</div>
-          <div class="fragment-text" data-text="The machine doesn't see a page — it sees boxes, guesses, and a confidence score for each. What it's sure of| survives as text; everything else
-collapses into geometry.| Feed the result back in, and it starts reading its | own uncertainty."></div>
+          <div class="fragment-text" data-style="boxrows" data-text="The machine doesn't see a page — it sees boxes, guesses, and a confidence score for each. What it's sure of survives as text; everything else collapses into geometry. Feed the result back in, and it starts reading its own uncertainty."></div>
           <button class="open-tool" data-tool-src="tools/position-zero.html" data-tool-name="OCR Skeleton">→ open tool</button>
         </div>
       </div>
@@ -680,7 +692,58 @@ function seededRandom(seed){
 
 let wrapCounter = 0;
 
+// OCR Skeleton's fragment renders as a stack of full-width bounding-box
+// rows, one word per row, staggered left/right — a different reading
+// system from the scatter/converge one below, but sharing the same
+// focus-driven fade (via .letter opacity) so it still belongs to the
+// same "bring it into focus to read it" logic as every other fragment.
+function wrapBoxRows(block){
+
+    const text = block.dataset.text.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+    const blockIdx = wrapCounter++;
+    const words = text.split(' ');
+    let i = 0;
+
+    words.forEach((word, wi)=>{
+
+        const row = document.createElement("div");
+        row.className = "frag-boxrow";
+
+        // stagger the word's horizontal position row to row — seeded so
+        // it's stable across re-renders, biased toward the left two
+        // thirds of the row so words don't clip against the right edge
+        const seed = blockIdx*1000 + wi;
+        const indent = seededRandom(seed) * 55; // 0–55% from the left
+        row.style.paddingLeft = indent.toFixed(1) + '%';
+
+        const wordSpan = document.createElement("span");
+        wordSpan.className = "word box-word";
+
+        word.split("").forEach(ch=>{
+            const span = document.createElement("span");
+            span.className = "letter";
+            span.textContent = ch;
+            span.dataset.char = ch;
+            // no scatter for this reading system — only the focus fade applies
+            span.dataset.dx = "0";
+            span.dataset.dy = "0";
+            span.dataset.rot = "0";
+            i++;
+            wordSpan.appendChild(span);
+        });
+
+        row.appendChild(wordSpan);
+        block.appendChild(row);
+
+    });
+}
+
 function wrapText(block){
+
+    if(block.dataset.style === "boxrows"){
+        wrapBoxRows(block);
+        return;
+    }
 
     const text = block.dataset.text;
     const blockIdx = wrapCounter++;
