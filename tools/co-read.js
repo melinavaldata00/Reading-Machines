@@ -295,7 +295,8 @@ function renderGroupVisual(g) {
     t.setAttribute('y', g.y + g.h / 2);
     t.setAttribute('text-anchor', 'middle');
     t.setAttribute('dominant-baseline', 'central');
-    t.style.fontFamily = "'IBM Plex Mono', monospace";
+    t.style.fontFamily = `"${g.fontFamily || 'ABC Gaisyr'}", monospace, serif`;
+    t.style.fontStyle = g.fontStyle || 'normal';
     t.style.fontSize = Math.max(8, g.h * 0.82) + 'px';
     t.style.fill = g.customColor || '#000000';
     if (g.fill > 0) t.style.fillOpacity = g.fill / 100;
@@ -609,6 +610,9 @@ function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
       rotation: 0,
       customColor: null,
       customOpacity: 100,
+      fontFamily: 'ABC Gaisyr',
+      fontStyle: 'normal',
+      disperseAmount: 0,
     };
   }).filter(g => g.paths.length > 0 || g.conf < SHAPE_THRESHOLD);
 }
@@ -864,6 +868,17 @@ function populateEditPanel(g) {
   document.getElementById('ep-rotation').value = g.rotation;
   document.getElementById('ep-fill').value     = g.fill;
   document.getElementById('ep-conf').value     = Math.round(effectiveConf(g));
+  document.getElementById('ep-disperse').value = g.disperseAmount || 0;
+
+  document.getElementById('ep-as-text').classList.toggle('on', !!g.textOverridden);
+  document.getElementById('ep-font-controls').style.display = g.textOverridden ? 'block' : 'none';
+  document.querySelectorAll('#ep-font-controls .font-btn').forEach(b => {
+    b.classList.toggle('on', b.dataset.font === (g.fontFamily || 'ABC Gaisyr'));
+  });
+  document.querySelectorAll('#ep-font-controls .style-btn').forEach(b => {
+    b.classList.toggle('on', b.dataset.style === (g.fontStyle || 'normal'));
+  });
+
   const n = S.selectedGroups.length;
   const extra = n > 1 ? `<br>+ ${n - 1} more selected — drag / delete / front / back / style apply to all` : '';
   document.getElementById('ep-meta').innerHTML =
@@ -987,6 +1002,79 @@ document.getElementById('ep-opacity').addEventListener('input', e => {
   S.selectedGroups.forEach(g => { g.customOpacity = v; });
   draw();
 });
+
+// ── show-as-text + font (batch, like the style controls above) ─────
+document.getElementById('ep-as-text').addEventListener('click', () => {
+  if (!S.selectedGroup) return;
+  const turnOn = !S.selectedGroup.textOverridden;
+  S.selectedGroups.forEach(g => { g.textOverridden = turnOn; });
+  populateEditPanel(S.selectedGroup);
+  draw();
+});
+document.querySelectorAll('#ep-font-controls .font-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!S.selectedGroup) return;
+    const font = btn.dataset.font;
+    S.selectedGroups.forEach(g => {
+      g.fontFamily = font;
+      if (font === 'MillionaireScript') g.fontStyle = 'normal';
+    });
+    populateEditPanel(S.selectedGroup);
+    draw();
+  });
+});
+document.querySelectorAll('#ep-font-controls .style-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!S.selectedGroup) return;
+    if (S.selectedGroup.fontFamily === 'MillionaireScript') return;
+    const style = btn.dataset.style;
+    S.selectedGroups.forEach(g => { if (g.fontFamily !== 'MillionaireScript') g.fontStyle = style; });
+    populateEditPanel(S.selectedGroup);
+    draw();
+  });
+});
+
+// ── layout: align selection, disperse ───────────────────────
+function alignSelection(mode) {
+  if (S.selectedGroups.length < 2) return;
+  if (mode === 'left') {
+    const target = Math.min(...S.selectedGroups.map(g => g.x));
+    S.selectedGroups.forEach(g => { g.x = target; g.cx = g.x + g.w / 2; });
+  } else if (mode === 'right') {
+    const target = Math.max(...S.selectedGroups.map(g => g.x + g.w));
+    S.selectedGroups.forEach(g => { g.x = target - g.w; g.cx = g.x + g.w / 2; });
+  } else if (mode === 'center') {
+    const target = S.selectedGroups.reduce((s, g) => s + g.cx, 0) / S.selectedGroups.length;
+    S.selectedGroups.forEach(g => { g.cx = target; g.x = g.cx - g.w / 2; });
+  }
+  draw();
+}
+document.getElementById('ep-align-left').addEventListener('click', () => alignSelection('left'));
+document.getElementById('ep-align-center').addEventListener('click', () => alignSelection('center'));
+document.getElementById('ep-align-right').addEventListener('click', () => alignSelection('right'));
+
+// scatters each selected word from a fixed reference point captured the
+// first time it's dispersed — a random but stable direction per group, so
+// dragging the slider is a smooth, reversible scatter instead of new
+// randomness on every tick.
+document.getElementById('ep-disperse').addEventListener('input', e => {
+  if (!S.selectedGroup) return;
+  const v = parseInt(e.target.value);
+  const maxOffset = Math.min(S.W, S.H) * 0.2;
+  S.selectedGroups.forEach(g => {
+    if (g._dispBaseX === undefined) {
+      g._dispBaseX = g.x; g._dispBaseY = g.y;
+      const angle = Math.random() * Math.PI * 2;
+      g._dispDirX = Math.cos(angle); g._dispDirY = Math.sin(angle);
+    }
+    g.disperseAmount = v;
+    g.x = g._dispBaseX + g._dispDirX * (v / 100) * maxOffset;
+    g.y = g._dispBaseY + g._dispDirY * (v / 100) * maxOffset;
+    g.cx = g.x + g.w / 2; g.cy = g.y + g.h / 2;
+  });
+  draw();
+});
+
 document.getElementById('ep-front').addEventListener('click', () => {
   if (!S.selectedGroups.length) return;
   const st = S.timeline[S.currentIdx];
