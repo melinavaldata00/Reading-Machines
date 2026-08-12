@@ -753,10 +753,13 @@ function wrapOutline(block){
 // itself out letter by letter, set in the real exported Anti-Type font
 // (same .otf the tool itself exports), with a blinking cursor at the end.
 // Clicking the text hands over the keyboard: the auto-typing stops and
-// the panel becomes directly editable, same font, same live rendering.
-// Returns { start, stop } so the page-switching logic can (re)play the
-// typing each time this page becomes active, and stop it when you leave —
-// which also resets any text the visitor typed back to the original copy.
+// the panel becomes directly editable. The moment the visitor stops
+// typing (a short pause with no input), the machine takes back over and
+// keeps typing out the rest of the original text on its own, picking up
+// exactly where it left off — click in again at any point to interrupt
+// it again. Returns { start, stop } so the page-switching logic can
+// (re)play the typing each time this page becomes active, and fully
+// reset it when you leave.
 function wrapAntiTypeWrite(block){
     const text = block.dataset.text;
     block.innerHTML = "";
@@ -777,17 +780,44 @@ function wrapAntiTypeWrite(block){
 
     block.appendChild(panel);
 
-    let timer = null;
-    let editing = false;
+    let timer     = null; // the auto-typing interval (initial or resumed)
+    let idleTimer = null; // debounce: fires once the visitor pauses
+    let i         = 0;    // how far into the original text the machine has gotten
+    let editing   = false;
+    const IDLE_DELAY = 1400; // ms of no input before the machine resumes
 
-    function stop(){
+    function stopTyping(){
         if(timer){ clearInterval(timer); timer = null; }
     }
 
+    function clearIdle(){
+        if(idleTimer){ clearTimeout(idleTimer); idleTimer = null; }
+    }
+
+    // the machine resumes, appending the remaining original characters
+    // after whatever the visitor left in the panel
+    function resumeAuto(){
+        editing = false;
+        content.contentEditable = "false";
+        cursor.style.display = "";
+        stopTyping();
+        timer = setInterval(()=>{
+            if(i >= text.length){ stopTyping(); return; }
+            content.appendChild(document.createTextNode(text[i]));
+            i++;
+        }, 130);
+    }
+
+    function scheduleResume(){
+        clearIdle();
+        idleTimer = setTimeout(resumeAuto, IDLE_DELAY);
+    }
+
     function beginEditing(){
+        clearIdle();
         if(editing) return;
         editing = true;
-        stop();
+        stopTyping();
         cursor.style.display = "none";
         content.contentEditable = "true";
         content.spellcheck = false;
@@ -802,19 +832,26 @@ function wrapAntiTypeWrite(block){
     }
 
     body.addEventListener("click", beginEditing);
+    content.addEventListener("input", scheduleResume);
 
     function start(){
-        stop();
+        clearIdle();
+        stopTyping();
         editing = false;
         content.contentEditable = "false";
         cursor.style.display = "";
         content.textContent = "";
-        let i = 0;
+        i = 0;
         timer = setInterval(()=>{
-            if(i >= text.length){ stop(); return; }
+            if(i >= text.length){ stopTyping(); return; }
             content.textContent += text[i];
             i++;
         }, 130);
+    }
+
+    function stop(){
+        clearIdle();
+        stopTyping();
     }
 
     return { start, stop };
