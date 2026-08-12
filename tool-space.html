@@ -872,9 +872,14 @@ function showPage(idx){
     document.body.classList.toggle("page-is-white", pages[currentPage].classList.contains("tp-float"));
 
     // page-specific effects (e.g. Anti Type's typing animation) only run
-    // while their own page is actually the one on screen
-    if(prevPage !== currentPage && pageHooks[prevPage]) pageHooks[prevPage].stop();
-    if(pageHooks[currentPage]) pageHooks[currentPage].start();
+    // while their own page is actually the one on screen — and only get
+    // (re)started when you actually navigate to a different page, not on
+    // a repeat click that lands on the page you're already viewing (that
+    // used to reset Anti Type's typing/editing every time, even mid-edit).
+    if(prevPage !== currentPage){
+        if(pageHooks[prevPage]) pageHooks[prevPage].stop();
+        if(pageHooks[currentPage]) pageHooks[currentPage].start();
+    }
 }
 
 document.getElementById("btn-next").addEventListener("click", ()=>{
