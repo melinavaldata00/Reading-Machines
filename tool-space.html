@@ -339,11 +339,6 @@ body.page-is-white .open-page:hover{
   display:flex;
 }
 
-.tp-inner{
-  max-width:760px;
-  width:100%;
-}
-
 .tp-head{
   display:flex;
   align-items:baseline;
@@ -451,17 +446,57 @@ body.page-is-white .open-page:hover{
   to{ transform:translateY(calc(-1 * var(--famp))); }
 }
 
-/* ---- 02 Blind Contour — outline only, fills solid on hover, exactly   */
-/* like the tool: shapes are kept only once you look closely enough.     */
+/* ---- 02 Blind Contour — pushed hard: huge, thick, slightly rough        */
+/* outlines (an SVG turbulence filter roughens the stroke edge, echoing    */
+/* the real jaggedness of cv2.findContours output instead of a clean       */
+/* vector line) that only resolve into a solid, filled shape once you      */
+/* look closely — hover snaps it filled almost instantly, no gentle fade,  */
+/* an exaggeration of the tool's own binary keep/discard-by-area logic.    */
+.tool-page.tp-bc-exaggerate{
+  padding:0;
+  overflow:hidden;
+}
+.tp-bc-exaggerate .tp-head{
+  position:absolute;
+  top:40px;
+  left:24px;
+  z-index:2;
+  margin:0;
+}
+.tp-bc-exaggerate .tp-title{
+  display:block;
+  font-family:"ABC Favorit", Helvetica, Arial, sans-serif;
+  font-size:clamp(48px, 9vw, 120px);
+  font-weight:400;
+  line-height:.92;
+  letter-spacing:-.02em;
+  color:var(--text);
+}
+.tp-bc-exaggerate .tp-text{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-wrap:wrap;
+  align-content:center;
+  gap:6px 34px;
+  padding:220px 90px 60px 24px;
+  overflow-y:auto;
+}
 .tp-text[data-style="outline"] .word{
   display:inline-block;
   color:transparent;
-  -webkit-text-stroke:1px var(--text);
-  transition:color .2s ease, -webkit-text-stroke-color .2s ease;
+  font-family:"ABC Favorit", monospace;
+  font-size:clamp(38px, 6.6vw, 92px);
+  line-height:1.15;
+  -webkit-text-stroke:5px var(--text);
+  filter:url(#bc-rough);
+  cursor:pointer;
+  transition:color .1s linear, -webkit-text-stroke-width .1s linear;
   animation:tpFadeUp .45s ease both;
 }
 .tp-text[data-style="outline"] .word:hover{
   color:var(--text);
+  -webkit-text-stroke-width:0px;
 }
 
 /* ---- 03 Anti Type — the text types itself out, letter by letter, set   */
@@ -593,6 +628,18 @@ body.page-is-white .open-page:hover{
 </head>
 <body class="page-is-white">
 
+<!-- roughens Blind Contour's outlined words so the stroke edge reads a  -->
+<!-- little imprecise/hand-traced, like real cv2 contour output, instead -->
+<!-- of a clean vector line — filter defs only, never rendered itself.   -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="bc-rough" x="-20%" y="-40%" width="140%" height="180%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.045 0.09" numOctaves="2" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
 <div id="tool-overlay">
   <div id="tool-overlay-bar">
     <span id="tool-overlay-title">—</span>
@@ -623,14 +670,11 @@ body.page-is-white .open-page:hover{
     <div class="tp-text" data-style="floatboxes" data-text="Before recognizing a single letter, an OCR system does something simpler first: it figures out [[where something might be written.]] [[The page is divided]] into rectangles, bounding boxes, drawn around clusters of dark pixels the system thinks could be words. Only after that does it try to guess what each word actually says, along with a number for how confident it is about that guess."></div>
   </section>
 
-  <section class="tool-page" data-idx="1" data-tool-src="tools/outline.html" data-tool-name="Blind Contour">
-    <div class="tp-inner">
-      <div class="tp-head">
-        <span class="tp-num">02</span>
-        <span class="tp-title">Blind Contour</span>
-      </div>
-      <div class="tp-text" data-style="outline" data-text="The machine keeps only the shapes it recognizes as writing and discards the rest as noise, handing back pure outline — a contour you can scale, rotate, or trust exactly as much as it does."></div>
+  <section class="tool-page tp-bc-exaggerate" data-idx="1" data-tool-src="tools/outline.html" data-tool-name="Blind Contour">
+    <div class="tp-head">
+      <span class="tp-title">Blind Contour</span>
     </div>
+    <div class="tp-text" data-style="outline" data-text="The machine keeps only the shapes it recognizes as writing and discards the rest as noise, handing back pure outline — a contour you can scale, rotate, or trust exactly as much as it does."></div>
   </section>
 
   <section class="tool-page tp-float tp-anti-write" data-idx="2" data-tool-src="tools/anti-ocr.html" data-tool-name="Anti Type">
