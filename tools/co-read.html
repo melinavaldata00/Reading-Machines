@@ -141,6 +141,13 @@ body {
   display: none;
 }
 #edit-panel.show { display: block; }
+#edit-panel-handle {
+  cursor: move;
+  user-select: none;
+  margin: -12px -12px 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--text-faint);
+}
 #edit-panel .ep-close {
   position: absolute; top: 10px; right: 12px;
   cursor: pointer; color: var(--text-dim); font-size: 14px;
@@ -285,7 +292,7 @@ footer-note {
         <svg id="svg-doc" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
       <div id="edit-panel">
-        <div class="section-title">selected word</div>
+        <div class="section-title" id="edit-panel-handle">selected word ⠿</div>
         <span class="ep-close" id="ep-close">×</span>
         <input type="text" id="ep-text" style="width:100%;font-family:"ABC Favorit",monospace;font-size:12px;border:1px solid var(--text-dim);background:none;color:var(--text);padding:4px 6px;outline:none;margin-bottom:8px">
         <div class="ep-row" style="margin-bottom:8px">

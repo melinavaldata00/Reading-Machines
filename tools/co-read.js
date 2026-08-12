@@ -966,6 +966,49 @@ function endDrag() {
   document.removeEventListener('mouseup', endDrag);
 }
 
+// ── edit panel: draggable by its header, so it can be moved off the word
+// it's currently editing when the panel happens to land on top of it ──
+(function () {
+  const panel  = document.getElementById('edit-panel');
+  const handle = document.getElementById('edit-panel-handle');
+  let start = null;
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const parentRect = panel.offsetParent.getBoundingClientRect();
+    const rect = panel.getBoundingClientRect();
+    // switch from the default left/bottom CSS to an explicit left/top,
+    // anchored at wherever the panel currently sits, so the drag starts
+    // from its real on-screen position with no jump
+    const initLeft = rect.left - parentRect.left;
+    const initTop  = rect.top  - parentRect.top;
+    panel.style.left   = initLeft + 'px';
+    panel.style.top    = initTop + 'px';
+    panel.style.bottom = 'auto';
+    start = { x: e.clientX, y: e.clientY, left: initLeft, top: initTop };
+    document.addEventListener('mousemove', onPanelDrag);
+    document.addEventListener('mouseup', endPanelDrag);
+  });
+
+  function onPanelDrag(e) {
+    if (!start) return;
+    const parentRect = panel.offsetParent.getBoundingClientRect();
+    const maxLeft = Math.max(0, parentRect.width  - panel.offsetWidth);
+    const maxTop  = Math.max(0, parentRect.height - panel.offsetHeight);
+    let newLeft = start.left + (e.clientX - start.x);
+    let newTop  = start.top  + (e.clientY - start.y);
+    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+    newTop  = Math.max(0, Math.min(newTop, maxTop));
+    panel.style.left = newLeft + 'px';
+    panel.style.top  = newTop + 'px';
+  }
+  function endPanelDrag() {
+    start = null;
+    document.removeEventListener('mousemove', onPanelDrag);
+    document.removeEventListener('mouseup', endPanelDrag);
+  }
+})();
+
 document.getElementById('ep-close').addEventListener('click', () => {
   document.getElementById('edit-panel').classList.remove('show');
   document.querySelectorAll('.outline-group').forEach(e => e.classList.remove('selected'));
