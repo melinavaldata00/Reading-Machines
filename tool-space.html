@@ -498,12 +498,17 @@ body.page-is-white .open-page:hover{
 /* scattered across a small pannable space. Only the current piece is a   */
 /* live link; clicking it pans the "camera" to wherever the next piece    */
 /* sits, so reading becomes a sequence of jumps instead of one continuous */
-/* paragraph. The last piece links back to the first — the loop. Stays    */
-/* on the site's normal dark/green palette (this page never goes white),  */
-/* but reuses the same full-bleed structural idea as the white pages.     */
+/* paragraph. The last piece links back to the first — the loop. Green    */
+/* background instead of the site's default dark one; title matches OCR   */
+/* Skeleton/Anti Type's position and size exactly.                        */
 .tool-page.tp-rl-camera{
+  --bg:#3fff00;
+  --text:#1f130d;
+  --text-dim: rgba(31,19,13,.45);
+  --text-faint: rgba(31,19,13,.22);
   padding:0;
   overflow:hidden;
+  background:var(--bg);
 }
 .tp-rl-camera .tp-head{
   position:absolute;
@@ -511,6 +516,15 @@ body.page-is-white .open-page:hover{
   left:24px;
   z-index:2;
   margin:0;
+}
+.tp-rl-camera .tp-title{
+  display:block;
+  font-family:"ABC Favorit", Helvetica, Arial, sans-serif;
+  font-size:clamp(48px, 9vw, 120px);
+  font-weight:400;
+  line-height:.92;
+  letter-spacing:-.02em;
+  color:#1f130d;
 }
 .tp-rl-camera .tp-text{
   position:absolute;
@@ -620,7 +634,6 @@ body.page-is-white .open-page:hover{
 
   <section class="tool-page tp-rl-camera" data-idx="3" data-tool-src="tools/co-read.html" data-tool-name="Reading Loop">
     <div class="tp-head">
-      <span class="tp-num">04</span>
       <span class="tp-title">Reading Loop</span>
     </div>
     <div class="tp-text" data-style="camera-links" data-text="what happens when a machine reads what is left from its previous reading? The tool takes an image as input and runs it through OCR, producing a typeset document — each word placed, sized, and positioned according to what the system found."></div>
@@ -1019,8 +1032,12 @@ function showPage(idx){
     currentPage = ((idx % pages.length) + pages.length) % pages.length;
     pages.forEach((p, i)=> p.classList.toggle("active", i === currentPage));
     indexBtns.forEach((b, i)=> b.classList.toggle("active", i === currentPage));
-    // brown buttons/index on the white OCR Skeleton page, green everywhere else
-    document.body.classList.toggle("page-is-white", pages[currentPage].classList.contains("tp-float"));
+    // brown buttons/index on the light-background pages (white or green),
+    // green-on-dark everywhere else
+    document.body.classList.toggle("page-is-white",
+        pages[currentPage].classList.contains("tp-float") ||
+        pages[currentPage].classList.contains("tp-rl-camera")
+    );
 
     // page-specific effects (e.g. Anti Type's typing animation) only run
     // while their own page is actually the one on screen — and only get
