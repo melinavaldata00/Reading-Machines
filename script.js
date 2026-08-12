@@ -244,8 +244,16 @@ function wrapScroll(){
 
 document.querySelectorAll(".panel").forEach(panel=>{
     panel.addEventListener("click", ()=>{
-        const presenter = document.getElementById("presenter");
-        if(presenter){ presenter.scrollIntoView({ behavior: "smooth" }); }
+        // go through the same jumpTo() the wheel/NEXT/index-dots use
+        // (defined later, in index.html's inline script -- it's global
+        // by the time this fires) instead of scrolling to #presenter
+        // directly, so in-presenter/currentPage get set synchronously
+        // and NEXT/open-tool show correctly instead of documentation.
+        if(typeof jumpTo === "function"){ jumpTo(1); }
+        else {
+            const presenter = document.getElementById("presenter");
+            if(presenter){ presenter.scrollIntoView({ behavior: "smooth" }); }
+        }
     });
 });
 

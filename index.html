@@ -778,6 +778,17 @@
   function jumpTo(idx){
       idx = Math.max(0, Math.min(allSections.length - 1, idx));
       sectionIndex = idx;
+      // set in-presenter synchronously, the moment we decide to jump --
+      // don't wait for the IntersectionObserver to confirm the scroll
+      // landed, since with scroll-snap + smooth scrollIntoView fighting
+      // over the same scroll position, the observer doesn't always fire
+      // reliably in real browsers (this was the actual cause of
+      // documentation still showing on a tool page: jumpTo() is the only
+      // way scroll position ever changes here -- wheel is fully
+      // intercepted -- so we already know deterministically which
+      // section we're headed to, no need to measure anything).
+      document.body.classList.toggle("in-presenter", idx > 0);
+      if(idx > 0) setCurrentPage(idx - 1);
       jumping = true;
       allSections[idx].scrollIntoView({ behavior: "smooth", block: "start" });
       clearTimeout(jumpCooldown);
