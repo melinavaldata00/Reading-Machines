@@ -447,9 +447,11 @@ html,body{
 /* visible; clicking it reveals the next box elsewhere in the space,      */
 /* and so on — the guesses arrive one at a time, exactly like the tool.   */
 .tool-page.tp-float{
+  --bg:#ffffff;
   padding:0;
   overflow:hidden;
   justify-content:flex-start;
+  background:var(--bg);
 }
 .tp-float .tp-head{
   position:absolute;
@@ -457,6 +459,18 @@ html,body{
   left:90px;
   z-index:2;
   margin:0;
+}
+/* title styled after the documentation site's own hero heading —        */
+/* ABC Favorit, huge, near-black — everything else on this page stays    */
+/* on the green/dark palette so we can see how green reads on white.     */
+.tp-float .tp-title{
+  display:block;
+  font-family:"ABC Favorit", Helvetica, Arial, sans-serif;
+  font-size:clamp(48px, 9vw, 120px);
+  font-weight:400;
+  line-height:.92;
+  letter-spacing:-.02em;
+  color:#1f130d;
 }
 .tp-float .tp-text{
   position:absolute;
