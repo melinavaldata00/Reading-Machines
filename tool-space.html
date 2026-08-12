@@ -249,6 +249,19 @@ html,body{
   opacity:1;
 }
 
+.tool-link.has-update{
+  opacity:1;
+}
+.tool-link.has-update .tool-label::after{
+  content:"";
+  display:inline-block;
+  width:6px; height:6px;
+  border-radius:50%;
+  background:#2bff00;
+  margin-left:8px;
+  vertical-align:middle;
+}
+
 #tool-overlay-close{
   background:none;
   border:1px solid var(--text-dim);
@@ -1204,6 +1217,12 @@ function openTool(src, name){
             antiTypeFrame.dataset.loaded = "1";
         }
         antiTypeFrame.classList.add("show");
+        // asking here, from a real click, works far more reliably across
+        // browsers (Safari especially) than asking from inside the iframe
+        if(typeof Notification !== "undefined" && Notification.permission === "default"){
+            Notification.requestPermission();
+        }
+        clearAntiTypeUpdateFlag();
     } else {
         antiTypeFrame.classList.remove("show");
         // avoid reloading the iframe if this tool is already the one showing
@@ -1220,6 +1239,39 @@ function openTool(src, name){
         link.classList.toggle("active", link.dataset.toolSrc === src);
     });
 }
+
+/* Anti Type runs in the background (see above) and reports back here      */
+/* when a word or font export finishes, via postMessage from its iframe.   */
+/* We try an OS notification, but don't rely on it alone — Safari in       */
+/* particular can silently withhold permission — so there's always a       */
+/* visible fallback too: a dot on the sidebar link plus a flashed tab      */
+/* title, both cleared the moment Anti Type is reopened.                   */
+const pageTitle = document.title;
+const antiTypeLink = document.querySelector('.tool-link[data-tool-src="' + ANTI_TYPE_SRC + '"]');
+
+function clearAntiTypeUpdateFlag(){
+    if(antiTypeLink) antiTypeLink.classList.remove("has-update");
+    document.title = pageTitle;
+}
+
+window.addEventListener("message", (event)=>{
+    if(event.origin !== location.origin) return;
+    if(!event.data || event.data.type !== "anti-type-done") return;
+
+    const { title, body } = event.data;
+
+    if(typeof Notification !== "undefined" && Notification.permission === "granted"){
+        try { new Notification(title, { body }); } catch(e) {}
+    }
+
+    // visible fallback, always shown regardless of notification permission
+    if(antiTypeLink) antiTypeLink.classList.add("has-update");
+    document.title = "● " + pageTitle;
+});
+
+window.addEventListener("focus", ()=>{
+    if(antiTypeFrame.classList.contains("show")) clearAntiTypeUpdateFlag();
+});
 
 // opened from a fragment on the canvas
 document.querySelectorAll(".open-tool").forEach(btn=>{

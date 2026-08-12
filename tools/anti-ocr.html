@@ -499,14 +499,11 @@ function glyphCacheKey(letter, maxIter, thresh, freqInt, glyphDim, font, style) 
 // ── completion notifications ────────────────────────────────
 // each run can take a while on the free hosting tier — this lets people
 // switch to another tool while it works and still get told when it's done.
-function requestNotifyPermission() {
-  if (typeof Notification === 'undefined') return;
-  if (Notification.permission === 'default') Notification.requestPermission();
-}
+function requestNotifyPermission() { /* handled by the parent page now */ }
 function notifyReady(title, body) {
-  if (typeof Notification === 'undefined') return;
-  if (Notification.permission !== 'granted') return;
-  try { new Notification(title, { body }); } catch (e) {}
+  try {
+    window.parent.postMessage({ type: 'anti-type-done', title, body }, location.origin);
+  } catch (e) {}
 }
 
 function prog(show, pct, txt) {
