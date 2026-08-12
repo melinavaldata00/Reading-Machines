@@ -173,6 +173,75 @@ body.stage-results .group-advanced{ display: block; opacity: 1; }
 
 #export-section{ display: none; opacity: 0; transition: opacity .35s; }
 body.stage-results #export-section{ display: flex; opacity: 1; }
+
+#guide-overlay{
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(31,19,13,.55);
+  z-index: 50;
+  align-items: center; justify-content: center;
+}
+#guide-overlay.show{ display: flex; }
+#guide-modal{
+  background: var(--bg);
+  border: 1px solid var(--text);
+  width: min(560px, 90vw);
+  max-height: 84vh;
+  overflow-y: auto;
+  padding: 22px 26px;
+}
+#guide-modal h2{
+  font-family: "ABC Gaisyr", monospace;
+  font-size: 15px;
+  letter-spacing: .04em;
+  font-weight: 400;
+  margin-bottom: 14px;
+}
+#guide-modal h3{
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 18px 0 8px;
+}
+#guide-modal p{
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+#guide-modal ol{
+  font-size: 12px;
+  line-height: 1.7;
+  padding-left: 18px;
+  margin-bottom: 8px;
+}
+#guide-modal code{
+  font-family: "ABC Favorit", monospace;
+  background: var(--text-faint);
+  padding: 1px 4px;
+  font-size: 11px;
+}
+.field-table{ width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+.field-table td{
+  font-size: 11px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--text-faint);
+  vertical-align: top;
+}
+.field-table td:first-child{
+  font-family: "ABC Favorit", monospace;
+  color: var(--text);
+  white-space: nowrap;
+  padding-right: 12px;
+  width: 110px;
+}
+.field-table td:last-child{ color: var(--text-dim); }
+#guide-actions{
+  display: flex; gap: 8px; margin-top: 18px;
+  border-top: 1px solid var(--text-faint); padding-top: 16px;
+}
+#guide-actions .b{ flex: 1; text-align: center; }
 </style>
 </head>
 <body>
@@ -181,6 +250,7 @@ body.stage-results #export-section{ display: flex; opacity: 1; }
   <span id="topbar-title"><b>OCR SKELETON</b> — <span id="fname">no file</span></span>
   <button class="b" id="btn-import">import</button>
   <button class="b go" id="btn-run" disabled>run OCR</button>
+  <button class="b" id="btn-guide" style="margin-left:auto">json → indesign guide</button>
   <input type="file" accept="image/*" id="file-input" style="display:none">
 </div>
 
@@ -248,6 +318,49 @@ body.stage-results #export-section{ display: flex; opacity: 1; }
       <button class="b" id="btn-svg" disabled>↓ svg</button>
       <button class="b" id="btn-png" disabled>↓ png</button>
       <button class="b" id="btn-json" disabled>↓ json</button>
+    </div>
+  </div>
+</div>
+
+<div id="guide-overlay">
+  <div id="guide-modal">
+    <h2>using the exported JSON in InDesign</h2>
+
+    <p>The <code>↓ json</code> export contains every visible word box (position, size,
+    rotation, recognised text, OCR confidence) plus a font/tracking/leading/opacity
+    recipe per box, driven by that confidence. It's meant to be read by a script,
+    not edited by hand — but here's what's inside it and how to turn it into an
+    InDesign layout automatically.</p>
+
+    <h3>json fields</h3>
+    <table class="field-table">
+      <tr><td>canvas.w / .h</td><td>size of the source image in px — used as the page size</td></tr>
+      <tr><td>frames[].x / y / w / h</td><td>unrotated bounding box of the word, in px</td></tr>
+      <tr><td>frames[].rotation</td><td>degrees to rotate that box around its own center</td></tr>
+      <tr><td>frames[].text</td><td>the word Tesseract recognised</td></tr>
+      <tr><td>frames[].conf</td><td>OCR confidence, 0–100</td></tr>
+      <tr><td>frames[].arizona</td><td>font / size offset / tracking / leading % / opacity % for this word, chosen from its confidence</td></tr>
+      <tr><td>frames[].thread_next</td><td>id of the next frame in reading order — used to thread the text frames together</td></tr>
+    </table>
+
+    <h3>how to run the import script</h3>
+    <ol>
+      <li>Download <code>ocr-skeleton-import.jsx</code> below.</li>
+      <li>In InDesign: <b>Window → Utilities → Scripts</b> to open the Scripts panel.</li>
+      <li><b>File → Scripts → Other Script…</b> and pick the downloaded <code>.jsx</code>
+        file directly (no need to install it into the Scripts panel for a one-off run).</li>
+      <li>Pick the exported <code>ocr-skeleton.json</code> when prompted — the script
+        creates a new document sized to the original image and places every word as a
+        threaded, styled text frame automatically.</li>
+    </ol>
+    <p>The four fonts referenced in <code>arizona</code> (ABC Arizona Serif / Text / Mix / Sans,
+    Trial cuts) need to be installed for the styling to apply — anything missing is
+    left in InDesign's default font and listed in a summary once the script finishes.
+    Everything happens in a single undo step.</p>
+
+    <div id="guide-actions">
+      <a class="b go" id="btn-download-jsx" href="ocr-skeleton-import.jsx" download="ocr-skeleton-import.jsx">↓ download .jsx script</a>
+      <button class="b" id="btn-guide-close">close</button>
     </div>
   </div>
 </div>
@@ -667,6 +780,17 @@ document.getElementById('btn-json').addEventListener('click', () => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}));
   a.download = 'ocr-skeleton.json'; a.click();
+});
+
+// ── json → indesign guide modal ─────────────────────────────
+document.getElementById('btn-guide').addEventListener('click', () => {
+  document.getElementById('guide-overlay').classList.add('show');
+});
+document.getElementById('btn-guide-close').addEventListener('click', () => {
+  document.getElementById('guide-overlay').classList.remove('show');
+});
+document.getElementById('guide-overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'guide-overlay') e.currentTarget.classList.remove('show');
 });
 
 function prog(show,p,txt){
