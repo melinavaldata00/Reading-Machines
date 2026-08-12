@@ -151,6 +151,8 @@
     .tool-page{
       position:relative; min-height:100vh; display:flex; flex-direction:column; justify-content:center;
       padding:0 90px; background:var(--tp-bg); color:var(--tp-text);
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
     }
     .tp-head{ display:flex; align-items:baseline; gap:16px; margin-bottom:34px; }
     .tp-num{ font-family:"ABC Gaisyr", monospace; font-size:13px; letter-spacing:.15em; color:var(--tp-text-dim); }

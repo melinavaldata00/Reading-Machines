@@ -35,6 +35,14 @@ body{
     font-family:"ABC Favorit", monospace;
 }
 
+/* section-snapped scroll — the whole page (landing + the 4 tool pages   */
+/* appended after it) scrolls in whole-screen jumps, never resting        */
+/* somewhere in between two sections. mandatory + scroll-snap-stop:always */
+/* means even a fast flick can't skip past a section unvisited.           */
+html{
+    scroll-snap-type: y mandatory;
+}
+
 /* ------------------------------------------------ */
 
 /* ------------------------------------------------ */
@@ -47,6 +55,8 @@ body{
     gap:48px;
     padding:32px;
     transition:.5s;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
 }
 
 /* ------------------------------------------------ */
