@@ -329,8 +329,8 @@ body.stage-results #iter-section{ display: block; }
     <div class="ctrl-group">
       <div class="ctrl-group-label">parameters</div>
       <div class="slider-row">
-        <div class="slider-label"><span>iterations</span><span id="val-iter">4</span></div>
-        <input type="range" id="sl-iter" min="4" max="20" value="4">
+        <div class="slider-label"><span>iterations</span><span id="val-iter">3</span></div>
+        <input type="range" id="sl-iter" min="3" max="20" value="3">
       </div>
       <div class="slider-row">
         <div class="slider-label"><span>blind threshold</span><span id="val-thresh">15</span>%</div>
@@ -472,6 +472,15 @@ document.querySelectorAll('.style-btn').forEach(btn => {
 let finalGlyphs = {};
 let currentWord = '';
 
+// cache of already-processed letters, keyed by every param that affects the
+// font-loop result — avoids re-hitting the server for a letter we've already
+// run with the exact same settings (e.g. typing a longer word that reuses
+// letters, or re-running after tweaking a slider that got reverted).
+const glyphCache = new Map();
+function glyphCacheKey(letter, maxIter, thresh, freqInt, glyphDim, font, style) {
+  return [letter, maxIter, thresh, freqInt, glyphDim, font, style].join('|');
+}
+
 function prog(show, pct, txt) {
   document.getElementById('prog').classList.toggle('show', show);
   if (pct !== undefined) document.getElementById('prog-fill').style.width = Math.round(pct * 100) + '%';
@@ -526,30 +535,36 @@ document.getElementById('btn-run').addEventListener('click', async () => {
   prog(true, 0, 'processing ' + letters.length + ' letters...');
 
   await runWithConcurrency(letters, 1, async (letter) => {
-    try {
-      const res = await fetch(SERVER + '/font-loop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          letter:    letter,
-          max_iter:  maxIter,
-          threshold: thresh,
-          intensity: freqInt,
+    const key = glyphCacheKey(letter, maxIter, thresh, freqInt, glyphDim, currentFont, currentStyle);
+    if (glyphCache.has(key)) {
+      finalGlyphs[letter] = glyphCache.get(key);
+    } else {
+      try {
+        const res = await fetch(SERVER + '/font-loop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            letter:    letter,
+            max_iter:  maxIter,
+            threshold: thresh,
+            intensity: freqInt,
+            dim:       glyphDim,
+            font_name:  currentFont,
+            font_style: currentStyle,
+          })
+        });
+        const data = await res.json();
+        finalGlyphs[letter] = {
+          paths:     data.paths,
+          blindIter: data.blind_iter,
+          finalConf: data.final_conf,
           dim:       glyphDim,
-          font_name:  currentFont,
-          font_style: currentStyle,
-        })
-      });
-      const data = await res.json();
-      finalGlyphs[letter] = {
-        paths:     data.paths,
-        blindIter: data.blind_iter,
-        finalConf: data.final_conf,
-        dim:       glyphDim,
-      };
-    } catch(e) {
-      console.error('error on letter', letter, e);
-      finalGlyphs[letter] = { paths: [], blindIter: 0, finalConf: 0, dim: glyphDim };
+        };
+        glyphCache.set(key, finalGlyphs[letter]);
+      } catch(e) {
+        console.error('error on letter', letter, e);
+        finalGlyphs[letter] = { paths: [], blindIter: 0, finalConf: 0, dim: glyphDim };
+      }
     }
 
     done++;
@@ -772,20 +787,26 @@ document.getElementById('btn-otf').addEventListener('click', async () => {
     showFontBuilding(true, 0, '');
     let doneCount = 0;
     await runWithConcurrency(missing, 1, async (letter) => {
-      try {
-        const res = await fetch(SERVER + '/font-loop', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            letter, max_iter: maxIter, threshold: thresh,
-            intensity: freqInt, dim: glyphDim,
-            font_name: currentFont, font_style: currentStyle,
-          })
-        });
-        const data = await res.json();
-        finalGlyphs[letter] = { paths: data.paths, blindIter: data.blind_iter, finalConf: data.final_conf, dim: glyphDim };
-      } catch(e) {
-        finalGlyphs[letter] = { paths: [], blindIter: 0, finalConf: 0, dim: glyphDim };
+      const key = glyphCacheKey(letter, maxIter, thresh, freqInt, glyphDim, currentFont, currentStyle);
+      if (glyphCache.has(key)) {
+        finalGlyphs[letter] = glyphCache.get(key);
+      } else {
+        try {
+          const res = await fetch(SERVER + '/font-loop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              letter, max_iter: maxIter, threshold: thresh,
+              intensity: freqInt, dim: glyphDim,
+              font_name: currentFont, font_style: currentStyle,
+            })
+          });
+          const data = await res.json();
+          finalGlyphs[letter] = { paths: data.paths, blindIter: data.blind_iter, finalConf: data.final_conf, dim: glyphDim };
+          glyphCache.set(key, finalGlyphs[letter]);
+        } catch(e) {
+          finalGlyphs[letter] = { paths: [], blindIter: 0, finalConf: 0, dim: glyphDim };
+        }
       }
       doneCount++;
       showFontBuilding(true, doneCount / missing.length, letter);

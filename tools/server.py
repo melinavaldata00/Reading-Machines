@@ -239,7 +239,7 @@ def font_loop():
 
     body      = request.json
     letter    = body.get('letter', 'A').strip()
-    max_iter  = int(body.get('max_iter', 4))
+    max_iter  = int(body.get('max_iter', 3))
     threshold = int(body.get('threshold', 15))
     intensity = float(body.get('intensity', 0.6))
     font_size_ratio = float(body.get('font_size', 0.75))
@@ -312,7 +312,10 @@ def font_loop():
         try:
             data = pytesseract.image_to_data(strip, lang='eng',
                 output_type=Output.DICT,
-                config='--psm 7 --oem 3')
+                config='--psm 7 --oem 3 '
+                       '-c load_system_dawg=0 -c load_freq_dawg=0 '
+                       '-c load_punc_dawg=0 -c load_number_dawg=0 '
+                       '-c load_unambig_dawg=0 -c load_bigram_dawg=0')
             confs = [int(c) for c in data['conf'] if int(c) > 0]
             return round(float(np.mean(confs))) if confs else 0
         except:
