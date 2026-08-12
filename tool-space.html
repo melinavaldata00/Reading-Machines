@@ -507,12 +507,21 @@ body.page-is-white .open-page:hover{
   opacity:1;
   transition:opacity .3s ease;
   pointer-events:none;
+  animation:bcDrift var(--ddur, 8s) ease-in-out infinite;
+  animation-delay:var(--ddelay, 0s);
 }
 .bc-blob path{
   fill:none;
   stroke:var(--text);
-  stroke-width:4;
-  filter:url(#bc-rough);
+  stroke-width:3.5;
+  stroke-linejoin:round;
+}
+@keyframes bcDrift{
+  0%   { transform:translate(0, 0) scale(1); }
+  25%  { transform:translate(4%, -5%) scale(1.03); }
+  50%  { transform:translate(-3%, 3%) scale(0.97); }
+  75%  { transform:translate(-4%, -3%) scale(1.02); }
+  100% { transform:translate(0, 0) scale(1); }
 }
 .bc-word.revealed .bc-label{
   opacity:1;
@@ -649,18 +658,6 @@ body.page-is-white .open-page:hover{
 </style>
 </head>
 <body class="page-is-white">
-
-<!-- roughens Blind Contour's outlined words so the stroke edge reads a  -->
-<!-- little imprecise/hand-traced, like real cv2 contour output, instead -->
-<!-- of a clean vector line — filter defs only, never rendered itself.   -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <filter id="bc-rough" x="-20%" y="-40%" width="140%" height="180%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.045 0.09" numOctaves="2" seed="7" result="noise"/>
-      <feDisplacementMap in="SourceGraphic" in2="noise" scale="7" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-  </defs>
-</svg>
 
 <div id="tool-overlay">
   <div id="tool-overlay-bar">
@@ -850,17 +847,44 @@ function wrapFloatBoxes(block){
     if(boxes.length) revealBox(0);
 }
 
-// 02 Blind Contour — each word is a seeded abstract blob (an irregular
-// closed SVG path, unrelated to the word's actual letterforms) overlaid
-// on the word itself, which starts invisible. Hovering reveals the word
-// and hides the blob; a few seconds later — automatically, regardless of
-// whether the mouse is still there — it decomposes back into the blob.
+// 02 Blind Contour — each word is a seeded abstract blob: a smooth,
+// rounded, continuously morphing closed curve (unrelated to the word's
+// actual letterforms) that also drifts slowly in place, so it reads as
+// fluid and alive rather than a static shape. Overlaid on the word
+// itself, which starts invisible. Hovering reveals the word and hides
+// the blob; a few seconds later — automatically, regardless of whether
+// the mouse is still there — it decomposes back into the blob.
 function wrapAbstractWords(block){
     const text = block.dataset.text.replace(/\s+/g, ' ').trim();
     const blockIdx = wrapCounter++;
     const words = text.split(' ');
     const SVG_NS = "http://www.w3.org/2000/svg";
     const REVEAL_MS = 2500;
+
+    // random points around a center, smoothed into a rounded closed blob
+    // by drawing quadratic curves through the midpoints between them —
+    // each raw point becomes a control point, not an on-path vertex, so
+    // corners round off instead of coming to sharp angles.
+    function smoothBlob(seed, variant){
+        const pts = 8;
+        const raw = [];
+        for(let i = 0; i < pts; i++){
+            const angle = (i / pts) * Math.PI * 2;
+            const r = 26 + seededRandom(seed + variant*17 + i*0.37) * 22; // 26–48
+            raw.push([
+                50 + Math.cos(angle) * r,
+                50 + Math.sin(angle) * r * 0.65 // flattened to suit a text-line box
+            ]);
+        }
+        const mid = (a, b)=> [(a[0]+b[0])/2, (a[1]+b[1])/2];
+        const fmt = p => p[0].toFixed(1) + "," + p[1].toFixed(1);
+        let d = "M " + fmt(mid(raw[raw.length-1], raw[0])) + " ";
+        for(let i = 0; i < raw.length; i++){
+            const next = raw[(i+1) % raw.length];
+            d += "Q " + fmt(raw[i]) + " " + fmt(mid(raw[i], next)) + " ";
+        }
+        return d + "Z";
+    }
 
     words.forEach((word, wi)=>{
         const wrap = document.createElement("span");
@@ -877,18 +901,30 @@ function wrapAbstractWords(block){
         svg.setAttribute("preserveAspectRatio", "none");
 
         const seed = blockIdx*1000 + wi;
-        const pts = 7 + Math.floor(seededRandom(seed) * 3); // 7–9 points
-        let d = "";
-        for(let i = 0; i < pts; i++){
-            const angle = (i / pts) * Math.PI * 2;
-            const r = 28 + seededRandom(seed + i*0.37) * 20; // 28–48
-            const x = 50 + Math.cos(angle) * r;
-            const y = 50 + Math.sin(angle) * r * 0.65; // flattened to suit a text-line box
-            d += (i === 0 ? "M " : "L ") + x.toFixed(1) + "," + y.toFixed(1) + " ";
-        }
-        d += "Z";
+
+        // slow positional drift, out of phase per word, on top of the
+        // shape morph — "move in space", not just change shape in place
+        const driftDur   = (6 + seededRandom(seed + 0.4) * 5).toFixed(2) + "s";
+        const driftDelay = "-" + (seededRandom(seed + 0.5) * 6).toFixed(2) + "s";
+        svg.style.setProperty("--ddur", driftDur);
+        svg.style.setProperty("--ddelay", driftDelay);
+
         const path = document.createElementNS(SVG_NS, "path");
-        path.setAttribute("d", d);
+        const d0 = smoothBlob(seed, 0);
+        const d1 = smoothBlob(seed, 1);
+        const d2 = smoothBlob(seed, 2);
+        path.setAttribute("d", d0);
+
+        const morph = document.createElementNS(SVG_NS, "animate");
+        morph.setAttribute("attributeName", "d");
+        morph.setAttribute("values", d0 + ";" + d1 + ";" + d2 + ";" + d0);
+        morph.setAttribute("keyTimes", "0;0.33;0.66;1");
+        morph.setAttribute("calcMode", "spline");
+        morph.setAttribute("keySplines", ".42 0 .58 1;.42 0 .58 1;.42 0 .58 1");
+        morph.setAttribute("dur", (5 + seededRandom(seed + 0.6) * 4).toFixed(2) + "s");
+        morph.setAttribute("begin", "-" + (seededRandom(seed + 0.7) * 5).toFixed(2) + "s");
+        morph.setAttribute("repeatCount", "indefinite");
+        path.appendChild(morph);
         svg.appendChild(path);
 
         wrap.appendChild(label);
