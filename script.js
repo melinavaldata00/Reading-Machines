@@ -169,7 +169,12 @@ machineToggle.onclick = ()=>{
 document.body.classList.add("show-both","state-1");
 
 /* ------------------------------ */
-/* SCROLL */
+/* SCROLL — the marquee now auto-plays on its own timer only; real page  */
+/* scroll (mouse wheel / trackpad / spacebar) is no longer intercepted,   */
+/* so it does what it does everywhere else on the site: moves you down    */
+/* off the landing and into the tool pages appended below. The marquee's  */
+/* own drift, state-cycling and letter dissolve effect keep running        */
+/* regardless of where you've scrolled to.                                 */
 /* ------------------------------ */
 
 let humanY = 0;
@@ -215,19 +220,11 @@ function nextState(){
 let lastTime = performance.now();
 
 /* ------------------------------ */
-/* MANUAL SCROLL — the reader can scroll through the text by hand;      */
-/* while they do, the automatic drift pauses, and resumes on its own      */
-/* shortly after they stop. both columns always move together, scroll     */
-/* included, so they never fall out of sync.                               */
-/* ------------------------------ */
-
-let userScrolling = false;
-let scrollResumeTimer = null;
 
 function wrapScroll(){
     const limit = contentHeight + viewportHeight;
 
-    // can't scroll back past the very start
+    // can't drift back past the very start
     if(humanY > 0){
         humanY = 0;
         machineY = 0;
@@ -240,27 +237,24 @@ function wrapScroll(){
     }
 }
 
-window.addEventListener("wheel", (e)=>{
-    e.preventDefault();
-
-    userScrolling = true;
-    clearTimeout(scrollResumeTimer);
-    scrollResumeTimer = setTimeout(()=>{ userScrolling = false; }, 900);
-
-    humanY -= e.deltaY;
-    machineY -= e.deltaY;
-    wrapScroll();
-
-}, { passive:false });
-
 /* ------------------------------ */
-/* CLICK-THROUGH — clicking either column leads into tool-space ---- */
+/* CLICK-THROUGH — clicking either column jumps down to the tool pages,  */
+/* which now live further down this same page instead of a separate one. */
 /* ------------------------------ */
 
 document.querySelectorAll(".panel").forEach(panel=>{
     panel.addEventListener("click", ()=>{
-        window.location.href = "tool-space.html?from=index";
+        const presenter = document.getElementById("presenter");
+        if(presenter){ presenter.scrollIntoView({ behavior: "smooth" }); }
     });
+});
+
+document.getElementById("enter-link") && document.getElementById("enter-link").addEventListener("click", (e)=>{
+    const presenter = document.getElementById("presenter");
+    if(presenter){
+        e.preventDefault();
+        presenter.scrollIntoView({ behavior: "smooth" });
+    }
 });
 
 /* ------------------------------ */
@@ -318,12 +312,10 @@ function animate(now){
     const dt = (now - lastTime) / 1000;
     lastTime = now;
 
-    if(!userScrolling){
-        const move = scrollSpeed * dt;
-        humanY -= move;
-        machineY -= move; // stessa velocità → restano sempre allineate
-        wrapScroll();
-    }
+    const move = scrollSpeed * dt;
+    humanY -= move;
+    machineY -= move; // stessa velocità → restano sempre allineate
+    wrapScroll();
 
     human.style.transform = `translate3d(0, ${humanY}px, 0)`;
     machine.style.transform = `translate3d(0, ${machineY}px, 0)`;

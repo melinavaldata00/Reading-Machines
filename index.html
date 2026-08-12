@@ -53,6 +53,193 @@
     @media(max-width:480px){
       .docs-link{ bottom:14px; right:14px; padding:8px 13px; font-size:11px; }
     }
+
+    /* ════════════════════════════════════════════════════════════ */
+    /* PRESENTER — the 4 tool pages, appended below the landing as    */
+    /* normal scroll sections. Own --tp-* palette vars (namespaced,   */
+    /* not --bg/--text) so they never collide with style.css's own    */
+    /* --bg/--text, which the marquee landing already uses for its    */
+    /* own, different, white/brown theme.                              */
+    /* ════════════════════════════════════════════════════════════ */
+    @font-face{
+      font-family:"ABC Stefan";
+      src:url('fonts/ABCStefan-Simple-Trial.otf') format('opentype');
+    }
+    @font-face{
+      font-family:"Anti-Type";
+      src:url('fonts/anti-ocr-2.otf') format('opentype');
+      font-display:swap;
+    }
+    #presenter{
+      --tp-bg:#170d03;
+      --tp-text:#3fff00;
+      --tp-text-dim:rgba(63,255,0,.3);
+      --tp-text-faint:rgba(63,255,0,.15);
+      position:relative;
+      z-index:1;
+    }
+    #publication-link{
+      position:fixed; top:18px; left:50%; transform:translateX(-50%);
+      font-size:13px; letter-spacing:.2em; font-family:"ABC Gaisyr", monospace;
+      color:var(--tp-text,#3fff00); z-index:250; text-decoration:none; opacity:.85; transition:opacity .2s;
+    }
+    #publication-link:hover{ opacity:.55; }
+    #back-to-start{
+      position:fixed; top:18px; left:24px; z-index:250; text-decoration:none;
+      color:var(--tp-text,#3fff00); opacity:0; pointer-events:none; transition:opacity .3s; font-size:13px;
+    }
+    body.in-presenter #back-to-start{ opacity:.7; pointer-events:auto; }
+    #back-to-start:hover{ opacity:1; }
+    #go-to-docs{
+      position:fixed; right:22px; bottom:66px; z-index:250; text-decoration:none;
+      color:var(--tp-text,#3fff00); opacity:0; pointer-events:none; transition:opacity .3s; font-size:13px;
+    }
+    body.in-presenter #go-to-docs{ opacity:.7; pointer-events:auto; }
+    #go-to-docs:hover{ opacity:1; }
+    #index-bar{
+      position:fixed; left:24px; top:50%; transform:translateY(-50%);
+      display:flex; flex-direction:column; gap:22px; z-index:250;
+      opacity:0; pointer-events:none; transition:opacity .3s;
+    }
+    body.in-presenter #index-bar{ opacity:1; pointer-events:auto; }
+    .index-num{
+      background:none; border:none; color:var(--tp-text,#3fff00); font-family:"ABC Gaisyr", monospace;
+      font-size:12px; letter-spacing:.1em; cursor:pointer; padding:0; opacity:.4; transition:opacity .2s, color .2s;
+    }
+    body.page-is-white .index-num{ color:#1f130d; }
+    .index-num:hover{ opacity:.8; }
+    .index-num.active{ opacity:1; }
+    .open-tool, .open-page{
+      display:inline-block; margin-top:14px; font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+      color:var(--tp-text,#3fff00); opacity:1; cursor:pointer; background:none; border:1px solid var(--tp-text,#3fff00);
+      border-radius:14px; font-family:inherit; padding:8px 16px; text-decoration:none; transition:background .2s, color .2s;
+    }
+    .open-tool:hover, .open-page:hover{ background:var(--tp-text,#3fff00); color:var(--tp-bg,#170d03); }
+    body.page-is-white .open-page{ color:#1f130d; border-color:#1f130d; }
+    body.page-is-white .open-page:hover{ background:#1f130d; color:#ffffff; }
+    #tool-overlay{
+      --ov-bg:#ffffff; --ov-text:#1f130d; --ov-text-dim:rgba(31,19,13,.45);
+      position:fixed; left:0; right:0; bottom:0; top:170px; z-index:300;
+      background:var(--ov-bg); color:var(--ov-text); border-top:1px solid var(--ov-text-dim);
+      transform:translateY(100%); transition:transform .5s cubic-bezier(.65,0,.35,1); pointer-events:none;
+    }
+    #tool-overlay.show{ transform:translateY(0); pointer-events:auto; }
+    #tool-overlay-bar{
+      position:absolute; top:0; left:0; right:0; height:34px; display:flex; align-items:center;
+      justify-content:space-between; gap:14px; padding:0 14px; z-index:5; pointer-events:none;
+    }
+    #tool-overlay-bar > *{ pointer-events:auto; }
+    #tool-overlay-title{ font-size:10px; letter-spacing:.04em; color:var(--ov-text-dim); }
+    #tool-guide-btn{
+      background:none; border:none; color:var(--ov-text-dim); font-family:inherit; font-size:11px;
+      letter-spacing:.05em; cursor:pointer; padding:0; text-decoration:underline; text-underline-offset:2px;
+      opacity:.85; transition:opacity .2s, color .2s;
+    }
+    #tool-guide-btn:hover{ opacity:1; color:var(--ov-text); }
+    #tool-guide-btn:disabled{ opacity:.3; pointer-events:none; }
+    #tool-overlay-close{
+      background:none; border:1px solid var(--ov-text-dim); border-radius:14px; color:var(--ov-text);
+      font-family:inherit; font-size:11px; letter-spacing:.08em; cursor:pointer; padding:6px 10px;
+      opacity:.7; transition:opacity .2s, background .2s, color .2s, border-color .2s;
+    }
+    #tool-overlay-close:hover{ opacity:1; background:#2bff00; color:#1f130d; border-color:#2bff00; }
+    #tool-overlay-iframe{ position:absolute; top:34px; left:0; right:0; bottom:0; border:none; width:100%; height:calc(100% - 34px); }
+    #anti-type-iframe{ position:absolute; top:34px; left:0; right:0; bottom:0; border:none; width:100%; height:calc(100% - 34px); display:none; }
+    #anti-type-iframe.show{ display:block; }
+    #anti-type-iframe.show ~ #tool-overlay-iframe{ display:none; }
+
+    .tool-page{
+      position:relative; min-height:100vh; display:flex; flex-direction:column; justify-content:center;
+      padding:0 90px; background:var(--tp-bg); color:var(--tp-text);
+    }
+    .tp-head{ display:flex; align-items:baseline; gap:16px; margin-bottom:34px; }
+    .tp-num{ font-family:"ABC Gaisyr", monospace; font-size:13px; letter-spacing:.15em; color:var(--tp-text-dim); }
+    .tp-title{ font-family:"ABC Gaisyr", monospace; font-size:30px; letter-spacing:.03em; font-weight:400; }
+    .tp-text{ font-family:"ABC Favorit", monospace; font-size:19px; line-height:1.55; }
+    @keyframes tpFadeUp{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
+    .tool-page.in-view .tp-head{ animation:tpFadeUp .5s ease both; }
+
+    /* ---- 01 OCR Skeleton ---- */
+    .tool-page.tp-float{ --tp-bg:#ffffff; padding:0; overflow:hidden; justify-content:flex-start; background:var(--tp-bg); }
+    .tp-float .tp-head{ position:absolute; top:40px; left:24px; z-index:2; margin:0; }
+    .tp-float .tp-title{
+      display:block; font-family:"ABC Favorit", Helvetica, Arial, sans-serif; font-size:clamp(48px, 9vw, 120px);
+      font-weight:400; line-height:.92; letter-spacing:-.02em; color:#1f130d;
+    }
+    .tp-float .tp-text{ position:absolute; inset:0; }
+    .ocr-box{
+      position:absolute; border:1px solid var(--tp-text-dim); padding:.55em .85em; line-height:1.3;
+      max-width:min(60vw, 360px); background:var(--tp-bg); opacity:0; pointer-events:none; cursor:default;
+      transition:opacity .6s ease, border-color .2s ease, background .2s ease, color .2s ease;
+    }
+    .ocr-box.visible{ opacity:1; pointer-events:auto; animation:var(--floatAnim) var(--fdur) ease-in-out infinite alternate; }
+    .ocr-box.clickable{ border-color:var(--tp-text); cursor:pointer; }
+    .ocr-box.clickable:hover{ background:var(--tp-text); color:var(--tp-bg); }
+    @keyframes boxFloatDown{ from{ transform:translateY(calc(-1 * var(--famp))); } to{ transform:translateY(var(--famp)); } }
+    @keyframes boxFloatUp{ from{ transform:translateY(var(--famp)); } to{ transform:translateY(calc(-1 * var(--famp))); } }
+
+    /* ---- 02 Blind Contour — redaction bars, reveal on hover, drop back ---- */
+    .tool-page.tp-bc-exaggerate{ padding:0; overflow:hidden; }
+    .tp-bc-exaggerate .tp-head{ position:absolute; top:40px; left:24px; z-index:2; margin:0; }
+    .tp-bc-exaggerate .tp-title{
+      display:block; font-family:"ABC Favorit", Helvetica, Arial, sans-serif; font-size:clamp(48px, 9vw, 120px);
+      font-weight:400; line-height:.92; letter-spacing:-.02em; color:var(--tp-text);
+    }
+    .tp-bc-exaggerate .tp-text{
+      position:absolute; inset:0; display:flex; flex-wrap:wrap; align-content:center;
+      gap:14px 34px; padding:220px 90px 60px 24px;
+    }
+    .bc-word{ position:relative; display:inline-block; cursor:pointer; animation:tpFadeUp .45s ease both; }
+    .bc-label{
+      display:inline-block; font-family:"ABC Favorit", monospace; font-size:clamp(38px, 6.6vw, 92px);
+      line-height:1.15; color:var(--tp-text); white-space:nowrap;
+    }
+    .bc-bar{
+      position:absolute; inset:-8% -5%; background:var(--tp-text); border-radius:1px;
+      transform:rotate(var(--btilt, 0deg)) translateY(0) scaleY(1); transform-origin:center;
+      opacity:1; pointer-events:none; transition:transform .4s cubic-bezier(.65,0,.35,1), opacity .3s ease .1s;
+    }
+    .bc-word.revealed .bc-bar{ transform:rotate(var(--btilt, 0deg)) translateY(-140%) scaleY(.85); opacity:0; }
+
+    /* ---- 03 Anti Type ---- */
+    .tp-float.tp-anti-write .tp-text{ position:static; inset:auto; }
+    .at-panel{ margin:240px 90px 60px 24px; }
+    .at-body{
+      font-family:"Anti-Type", monospace; font-size:clamp(40px, 6.5vw, 84px); line-height:1.3;
+      color:#1f130d; white-space:pre-wrap; word-wrap:break-word; cursor:text;
+    }
+    .at-content[contenteditable="true"]{ outline:none; }
+    .at-cursor{ display:inline-block; margin-left:2px; color:#1f130d; animation:atBlink 1s step-end infinite; }
+    @keyframes atBlink{ 0%, 100%{ opacity:1; } 50%{ opacity:0; } }
+
+    /* ---- 04 Reading Loop ---- */
+    .tool-page.tp-rl-camera{
+      --tp-bg:#3fff00; --tp-text:#1f130d; --tp-text-dim: rgba(31,19,13,.45); --tp-text-faint: rgba(31,19,13,.22);
+      padding:0; overflow:hidden; background:var(--tp-bg);
+    }
+    .tp-rl-camera .tp-head{ position:absolute; top:40px; left:24px; z-index:2; margin:0; }
+    .tp-rl-camera .tp-title{
+      display:block; font-family:"ABC Favorit", Helvetica, Arial, sans-serif; font-size:clamp(48px, 9vw, 120px);
+      font-weight:400; line-height:.92; letter-spacing:-.02em; color:#1f130d;
+    }
+    .tp-rl-camera .tp-text{ position:absolute; inset:0; }
+    .rl-viewport{ position:absolute; inset:0; overflow:hidden; }
+    .rl-world{ position:absolute; top:0; left:0; will-change:transform; transition:transform .45s cubic-bezier(.65,0,.35,1); }
+    .rl-piece{
+      position:absolute; max-width:1200px; white-space:nowrap; font-family:"ABC Favorit", monospace;
+      font-size:20px; line-height:1.55; color:var(--tp-text-dim); opacity:.45; transition:color .3s ease, opacity .3s ease;
+    }
+    .rl-piece.visited{ opacity:.3; }
+    .rl-piece.active{ color:var(--tp-text); opacity:1; cursor:pointer; }
+    .rl-piece.active:hover{ opacity:.7; }
+
+    #btn-next{ position:fixed; bottom:18px; right:22px; z-index:250; opacity:0; pointer-events:none; transition:opacity .3s; }
+    #btn-go-tool{ position:fixed; bottom:18px; left:24px; z-index:250; opacity:0; pointer-events:none; transition:opacity .3s; }
+    body.in-presenter #btn-next, body.in-presenter #btn-go-tool{ opacity:1; pointer-events:auto; }
+
+    @media(max-width:800px){
+      .tool-page{ padding:0 24px; }
+    }
   </style>
 </head>
 <body>
@@ -77,9 +264,602 @@
 
   </main>
 
-  <a href="tool-space.html?from=index" class="readme-link">ENTER</a>
+  <a href="tool-space.html?from=index" id="enter-link" class="readme-link">ENTER</a>
   <a href="https://melinavaldata00.github.io/RMDocumentation/" class="docs-link" target="_blank" rel="noopener">DOCUMENTATION</a>
 
   <script src="script.js"></script>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- PRESENTER — the 4 tool pages, continuing the same scroll below   -->
+  <!-- the landing marquee instead of living on a separate page.        -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+
+  <div id="tool-overlay">
+    <div id="tool-overlay-bar">
+      <span id="tool-overlay-title">—</span>
+      <button id="tool-guide-btn" disabled>how does it work?</button>
+      <button id="tool-overlay-close">✕ close</button>
+    </div>
+    <iframe id="anti-type-iframe" src="" title="Anti Type"></iframe>
+    <iframe id="tool-overlay-iframe" src="" title="tool"></iframe>
+  </div>
+
+  <a href="#top" id="back-to-start">← back to start</a>
+  <a href="tools/publication.html" id="publication-link">PUBLICATION</a>
+  <a href="https://melinavaldata00.github.io/RMDocumentation/" id="go-to-docs" target="_blank" rel="noopener">documentation →</a>
+
+  <div id="index-bar">
+    <button class="index-num active" data-idx="0">01</button>
+    <button class="index-num" data-idx="1">02</button>
+    <button class="index-num" data-idx="2">03</button>
+    <button class="index-num" data-idx="3">04</button>
+  </div>
+
+  <div id="presenter-sentinel"></div>
+  <div id="presenter">
+
+    <section class="tool-page tp-float" data-idx="0" data-tool-src="tools/position-zero.html" data-tool-name="OCR Skeleton">
+      <div class="tp-head">
+        <span class="tp-title">OCR Skeleton</span>
+      </div>
+      <div class="tp-text" data-style="floatboxes" data-text="Before recognizing a single letter, an OCR system does something simpler first: it figures out [[where something might be written.]] [[The page is divided]] into rectangles, bounding boxes, drawn around clusters of dark pixels the system thinks could be words. Only after that does it try to guess what each word actually says, along with a number for how confident it is about that guess."></div>
+    </section>
+
+    <section class="tool-page tp-bc-exaggerate" data-idx="1" data-tool-src="tools/outline.html" data-tool-name="Blind Contour">
+      <div class="tp-head">
+        <span class="tp-title">Blind Contour</span>
+      </div>
+      <div class="tp-text" data-style="abstract-words" data-text="The machine keeps only the shapes it recognizes as writing and discards the rest as noise, handing back pure outline — a contour you can scale, rotate, or trust exactly as much as it does."></div>
+    </section>
+
+    <section class="tool-page tp-float tp-anti-write" data-idx="2" data-tool-src="tools/anti-ocr.html" data-tool-name="Anti Type">
+      <div class="tp-head">
+        <span class="tp-title">Anti Type</span>
+      </div>
+      <div class="tp-text" data-style="antitype-write" data-text="Every letter has a point at which a machine stops recognizing it. Not because the shape has disappeared, it is still there visible to a human eye, but because enough of its detail has been removed that the system can no longer produce a confident guess about what it is."></div>
+    </section>
+
+    <section class="tool-page tp-rl-camera" data-idx="3" data-tool-src="tools/co-read.html" data-tool-name="Reading Loop">
+      <div class="tp-head">
+        <span class="tp-title">Reading Loop</span>
+      </div>
+      <div class="tp-text" data-style="camera-links" data-text="what happens when a machine reads what is left from its previous reading? The tool takes an image as input and runs it through OCR, producing a typeset document — each word placed, sized, and positioned according to what the system found."></div>
+    </section>
+
+  </div>
+
+  <button id="btn-go-tool" class="open-page">open tool →</button>
+  <button id="btn-next" class="open-page">next →</button>
+
+  <script>
+
+  /* ------------------------------ */
+  /* SEEDED RANDOM (presenter's own copy — script.js has one too, but     */
+  /* scoped separately since both files declare it at top level)          */
+  /* ------------------------------ */
+
+  function tpSeededRandom(seed){
+      let s = Math.sin(seed) * 10000;
+      return s - Math.floor(s);
+  }
+
+  /* ------------------------------ */
+  /* READING SYSTEMS — one bespoke visual treatment per tool page, each    */
+  /* built from the same plain data-text string.                            */
+  /* ------------------------------ */
+
+  let wrapCounter = 0;
+
+  // keyed by page index — lets a reading system run something (like Anti
+  // Type's typing effect) only while its page is actually on screen.
+  const pageHooks = {};
+
+  // 01 OCR Skeleton — the text is chunked into groups of 1-3 words, each one
+  // living inside a floating box of its own size, drifting slowly up or down.
+  // Only the first box starts visible; clicking a box reveals the next one,
+  // placed elsewhere in the space — the guesses arrive one at a time.
+  function wrapFloatBoxes(block){
+      const raw = block.dataset.text.replace(/\s+/g, ' ').trim();
+      const blockIdx = wrapCounter++;
+
+      const units = [];
+      const forcedRe = /\[\[(.*?)\]\]/g;
+      let lastIndex = 0, m;
+      const pushWords = str=>{
+          str.trim().split(' ').filter(Boolean).forEach(w=> units.push({ t: w, forced: false }));
+      };
+      while((m = forcedRe.exec(raw))){
+          pushWords(raw.slice(lastIndex, m.index));
+          units.push({ t: m[1].trim(), forced: true });
+          lastIndex = forcedRe.lastIndex;
+      }
+      pushWords(raw.slice(lastIndex));
+
+      const chunks = [];
+      let ui = 0, gi = 0;
+
+      if(units.length){
+          if(units[0].forced){
+              chunks.push(units[0].t);
+              ui = 1;
+          } else {
+              const take = [];
+              while(ui < units.length && !units[ui].forced && take.length < 2){
+                  take.push(units[ui].t); ui++;
+              }
+              chunks.push(take.join(' '));
+          }
+      }
+
+      while(ui < units.length){
+          if(units[ui].forced){
+              chunks.push(units[ui].t);
+              ui++;
+              continue;
+          }
+          const size = 2 + Math.floor(tpSeededRandom(blockIdx*1000 + gi) * 2);
+          const take = [];
+          while(ui < units.length && !units[ui].forced && take.length < size){
+              take.push(units[ui].t); ui++;
+          }
+          chunks.push(take.join(' '));
+          gi++;
+      }
+
+      if(chunks.length > 1 && chunks[chunks.length - 1].split(' ').length < 2){
+          const last = chunks.pop();
+          chunks[chunks.length - 1] += ' ' + last;
+      }
+
+      const boxes = chunks.map((chunk, ci)=>{
+          const box = document.createElement("div");
+          box.className = "ocr-box";
+          box.textContent = chunk;
+
+          const seed = blockIdx*1000 + ci;
+          const left  = 6  + tpSeededRandom(seed + 0.1) * 68;
+          const top   = 10 + tpSeededRandom(seed + 0.2) * 64;
+          const fsize = 14 + tpSeededRandom(seed + 0.3) * 18;
+          const fdur  = 4.5 + tpSeededRandom(seed + 0.4) * 4.5;
+          const famp  = 26 + tpSeededRandom(seed + 0.5) * 64;
+          const goingDown = tpSeededRandom(seed + 0.6) > 0.5;
+
+          box.style.left = left.toFixed(1) + "%";
+          box.style.top  = top.toFixed(1) + "%";
+          box.style.fontSize = fsize.toFixed(1) + "px";
+          box.style.setProperty("--fdur", fdur.toFixed(2) + "s");
+          box.style.setProperty("--famp", famp.toFixed(1) + "px");
+          box.style.setProperty("--floatAnim", goingDown ? "boxFloatDown" : "boxFloatUp");
+
+          block.appendChild(box);
+          return box;
+      });
+
+      function revealBox(ci){
+          const box = boxes[ci];
+          box.classList.add("visible");
+          if(ci < boxes.length - 1){
+              box.classList.add("clickable");
+              box.addEventListener("click", ()=>{
+                  if(box.dataset.used) return;
+                  box.dataset.used = "1";
+                  box.classList.remove("clickable");
+                  revealBox(ci + 1);
+              });
+          }
+      }
+
+      if(boxes.length) revealBox(0);
+  }
+
+  // 02 Blind Contour — each word sits under a solid redaction bar, the same
+  // colour as the text, stamped on at a small seeded tilt so the row doesn't
+  // look machine-uniform. Hovering lifts the bar away and reveals the word;
+  // a few seconds later — automatically, regardless of whether the mouse is
+  // still there — it drops back down and covers the word again.
+  function wrapAbstractWords(block){
+      const text = block.dataset.text.replace(/\s+/g, ' ').trim();
+      const blockIdx = wrapCounter++;
+      const words = text.split(' ');
+      const REVEAL_MS = 2500;
+
+      words.forEach((word, wi)=>{
+          const wrap = document.createElement("span");
+          wrap.className = "bc-word";
+          wrap.style.animationDelay = (wi * 0.04).toFixed(3) + 's';
+
+          const label = document.createElement("span");
+          label.className = "bc-label";
+          label.textContent = word;
+
+          const bar = document.createElement("span");
+          bar.className = "bc-bar";
+          const seed = blockIdx*1000 + wi;
+          const tilt = (tpSeededRandom(seed + 0.6) - 0.5) * 3.6;
+          bar.style.setProperty("--btilt", tilt.toFixed(2) + "deg");
+
+          wrap.appendChild(label);
+          wrap.appendChild(bar);
+
+          let revealTimer = null;
+          wrap.addEventListener("mouseenter", ()=>{
+              wrap.classList.add("revealed");
+              clearTimeout(revealTimer);
+              revealTimer = setTimeout(()=> wrap.classList.remove("revealed"), REVEAL_MS);
+          });
+
+          block.appendChild(wrap);
+          block.appendChild(document.createTextNode(" "));
+      });
+  }
+
+  // 03 Anti Type — a plain text-file panel where the description types
+  // itself out letter by letter, set in the real exported Anti-Type font,
+  // with a blinking cursor. Clicking the text hands over the keyboard;
+  // pausing hands it back. Returns { start, stop }.
+  function wrapAntiTypeWrite(block){
+      const text = block.dataset.text;
+      block.innerHTML = "";
+
+      const panel = document.createElement("div");
+      panel.className = "at-panel";
+
+      const body = document.createElement("div");
+      body.className = "at-body";
+      const content = document.createElement("span");
+      content.className = "at-content";
+      const cursor = document.createElement("span");
+      cursor.className = "at-cursor";
+      cursor.textContent = "|";
+      body.appendChild(content);
+      body.appendChild(cursor);
+      panel.appendChild(body);
+
+      block.appendChild(panel);
+
+      let timer     = null;
+      let idleTimer = null;
+      let i         = 0;
+      let editing   = false;
+      const IDLE_DELAY = 1400;
+
+      function stopTyping(){
+          if(timer){ clearInterval(timer); timer = null; }
+      }
+
+      function clearIdle(){
+          if(idleTimer){ clearTimeout(idleTimer); idleTimer = null; }
+      }
+
+      function resumeAuto(){
+          editing = false;
+          content.contentEditable = "false";
+          cursor.style.display = "";
+          stopTyping();
+          timer = setInterval(()=>{
+              if(i >= text.length){ stopTyping(); return; }
+              content.appendChild(document.createTextNode(text[i]));
+              i++;
+          }, 130);
+      }
+
+      function scheduleResume(){
+          clearIdle();
+          idleTimer = setTimeout(resumeAuto, IDLE_DELAY);
+      }
+
+      function beginEditing(){
+          clearIdle();
+          if(editing) return;
+          editing = true;
+          stopTyping();
+          cursor.style.display = "none";
+          content.contentEditable = "true";
+          content.spellcheck = false;
+          content.focus();
+          const range = document.createRange();
+          range.selectNodeContents(content);
+          range.collapse(false);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+      }
+
+      body.addEventListener("click", beginEditing);
+      content.addEventListener("input", scheduleResume);
+
+      function start(){
+          clearIdle();
+          stopTyping();
+          editing = false;
+          content.contentEditable = "false";
+          cursor.style.display = "";
+          content.textContent = "";
+          i = 0;
+          timer = setInterval(()=>{
+              if(i >= text.length){ stopTyping(); return; }
+              content.textContent += text[i];
+              i++;
+          }, 130);
+      }
+
+      function stop(){
+          clearIdle();
+          stopTyping();
+      }
+
+      return { start, stop };
+  }
+
+  // 04 Reading Loop — text chunked into phrase-length pieces scattered
+  // across a large virtual space; the camera auto-advances on a loop.
+  // Returns { start, stop }.
+  function wrapCameraLinks(block){
+      const raw = block.dataset.text.replace(/\s+/g, ' ').trim();
+      const blockIdx = wrapCounter++;
+      const words = raw.split(' ');
+
+      const pieces = [];
+      let wi = 0, gi = 0;
+      while(wi < words.length){
+          const size = 5 + Math.floor(tpSeededRandom(blockIdx*1000 + gi) * 5);
+          pieces.push(words.slice(wi, wi + size).join(' '));
+          wi += size;
+          gi++;
+      }
+      if(pieces.length > 1 && pieces[pieces.length - 1].split(' ').length < 3){
+          const last = pieces.pop();
+          pieces[pieces.length - 1] += ' ' + last;
+      }
+
+      block.innerHTML = "";
+      const viewport = document.createElement("div");
+      viewport.className = "rl-viewport";
+      const world = document.createElement("div");
+      world.className = "rl-world";
+      viewport.appendChild(world);
+      block.appendChild(viewport);
+
+      const WORLD_W = 4400, WORLD_H = 2600;
+      const cols = Math.ceil(Math.sqrt(pieces.length));
+      const rows = Math.ceil(pieces.length / cols);
+      const cellW = WORLD_W / cols, cellH = WORLD_H / rows;
+
+      const items = pieces.map((txt, pi)=>{
+          const el = document.createElement("span");
+          el.className = "rl-piece";
+          el.textContent = txt;
+
+          const col = pi % cols, row = Math.floor(pi / cols);
+          const seed = blockIdx*1000 + pi;
+          const x = col*cellW + cellW*0.15 + tpSeededRandom(seed + 0.1) * cellW*0.6;
+          const y = row*cellH + cellH*0.15 + tpSeededRandom(seed + 0.2) * cellH*0.6;
+
+          el.style.left = x.toFixed(1) + "px";
+          el.style.top  = y.toFixed(1) + "px";
+          world.appendChild(el);
+          return { el, x, y };
+      });
+
+      let current = 0;
+      const visited = new Set();
+      let autoTimer = null;
+      const AUTO_DELAY = 2800;
+
+      function panTo(idx){
+          const vp = viewport.getBoundingClientRect();
+          const target = items[idx];
+          const tx = vp.width/2 - target.x;
+          const ty = vp.height/2 - target.y;
+          world.style.transform = "translate(" + tx.toFixed(1) + "px, " + ty.toFixed(1) + "px)";
+      }
+
+      function setActive(idx){
+          items.forEach((it, i)=>{
+              it.el.classList.toggle("active", i === idx);
+              it.el.classList.toggle("visited", i !== idx && visited.has(i));
+          });
+      }
+
+      function clearAuto(){
+          if(autoTimer){ clearTimeout(autoTimer); autoTimer = null; }
+      }
+
+      function scheduleAuto(){
+          clearAuto();
+          autoTimer = setTimeout(()=>{
+              activate((current + 1) % items.length);
+          }, AUTO_DELAY);
+      }
+
+      function activate(idx){
+          current = idx;
+          visited.add(idx);
+          panTo(idx);
+          setActive(idx);
+          scheduleAuto();
+      }
+
+      items.forEach((it, i)=>{
+          it.el.addEventListener("click", ()=>{
+              if(i !== current) return;
+              activate((current + 1) % items.length);
+          });
+      });
+
+      function start(){
+          visited.clear();
+          activate(0);
+      }
+
+      function stop(){
+          clearAuto();
+      }
+
+      return { start, stop };
+  }
+
+  function renderReadingSystem(block){
+      switch(block.dataset.style){
+          case "floatboxes": wrapFloatBoxes(block); break;
+          case "abstract-words": wrapAbstractWords(block); break;
+          case "antitype-write": {
+              const hooks = block.closest(".tool-page").dataset.idx;
+              pageHooks[hooks] = wrapAntiTypeWrite(block);
+              break;
+          }
+          case "camera-links": {
+              const idx = block.closest(".tool-page").dataset.idx;
+              pageHooks[idx] = wrapCameraLinks(block);
+              break;
+          }
+      }
+  }
+
+  document.querySelectorAll(".tp-text").forEach(renderReadingSystem);
+
+  /* ------------------------------ */
+  /* PAGE STATE — scroll-driven instead of click-only. An IntersectionObs- */
+  /* erver watches all 4 tool pages; whichever one crosses the middle of   */
+  /* the viewport becomes "current": its reading-system hook starts (the   */
+  /* previous one's stops), the index-bar dot updates, and the fixed       */
+  /* controls flip between the green-on-dark and brown-on-light palette.   */
+  /* NEXT and the index dots still work — they just scroll to the target   */
+  /* section instead of instantly swapping a display:none flag.            */
+  /* ------------------------------ */
+
+  const pages     = Array.from(document.querySelectorAll(".tool-page"));
+  const indexBtns = Array.from(document.querySelectorAll(".index-num"));
+  let currentPage = 0;
+
+  function setCurrentPage(idx){
+      const prevPage = currentPage;
+      currentPage = idx;
+      pages.forEach((p, i)=> p.classList.toggle("in-view", i === currentPage));
+      indexBtns.forEach((b, i)=> b.classList.toggle("active", i === currentPage));
+      document.body.classList.toggle("page-is-white",
+          pages[currentPage].classList.contains("tp-float") ||
+          pages[currentPage].classList.contains("tp-rl-camera")
+      );
+      if(prevPage !== currentPage){
+          if(pageHooks[prevPage]) pageHooks[prevPage].stop();
+          if(pageHooks[currentPage]) pageHooks[currentPage].start();
+      }
+  }
+
+  const pageObserver = new IntersectionObserver((entries)=>{
+      entries.forEach(entry=>{
+          if(entry.isIntersecting && entry.intersectionRatio >= 0.5){
+              const idx = pages.indexOf(entry.target);
+              if(idx !== -1) setCurrentPage(idx);
+          }
+      });
+  }, { threshold: [0.5] });
+  pages.forEach(p=> pageObserver.observe(p));
+
+  // fixed presenter chrome (index-bar, next, go-to-tool, back-to-start)
+  // stays hidden while on the landing, fades in once the presenter
+  // section is actually reachable on screen -- also used by style.css to
+  // fade out the landing's own STATE/column-toggle chrome in reverse.
+  const presenterSentinel = document.getElementById("presenter-sentinel");
+  const presenterObserver = new IntersectionObserver((entries)=>{
+      entries.forEach(entry=>{
+          document.body.classList.toggle("in-presenter", entry.boundingClientRect.top < window.innerHeight);
+      });
+  }, { threshold: [0] });
+  presenterObserver.observe(presenterSentinel);
+
+  document.getElementById("btn-next").addEventListener("click", ()=>{
+      const next = (currentPage + 1) % pages.length;
+      pages[next].scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  indexBtns.forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+          const idx = parseInt(btn.dataset.idx, 10);
+          pages[idx].scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+  });
+
+  document.getElementById("btn-go-tool").addEventListener("click", ()=>{
+      const p = pages[currentPage];
+      openTool(p.dataset.toolSrc, p.dataset.toolName);
+  });
+
+  document.getElementById("back-to-start").addEventListener("click", (e)=>{
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  /* ------------------------------ */
+  /* TOOL OVERLAY */
+  /* ------------------------------ */
+
+  const toolOverlay      = document.getElementById("tool-overlay");
+  const toolOverlayFrame = document.getElementById("tool-overlay-iframe");
+  const antiTypeFrame    = document.getElementById("anti-type-iframe");
+  const toolOverlayTitle = document.getElementById("tool-overlay-title");
+  const ANTI_TYPE_SRC    = "tools/anti-ocr.html";
+
+  function openTool(src, name){
+      if(src === ANTI_TYPE_SRC){
+          if(!antiTypeFrame.dataset.loaded){
+              antiTypeFrame.src = src;
+              antiTypeFrame.dataset.loaded = "1";
+          }
+          antiTypeFrame.classList.add("show");
+          if(typeof Notification !== "undefined" && Notification.permission === "default"){
+              Notification.requestPermission();
+          }
+          clearAntiTypeUpdateFlag();
+      } else {
+          antiTypeFrame.classList.remove("show");
+          if(toolOverlayFrame.dataset.currentSrc !== src){
+              toolOverlayFrame.src = src;
+              toolOverlayFrame.dataset.currentSrc = src;
+          }
+      }
+
+      toolOverlayTitle.textContent = name;
+      toolOverlay.classList.add("show");
+      document.getElementById("tool-guide-btn").disabled = false;
+  }
+
+  document.getElementById("tool-guide-btn").addEventListener("click", ()=>{
+      const activeFrame = antiTypeFrame.classList.contains("show") ? antiTypeFrame : toolOverlayFrame;
+      if(!activeFrame.contentWindow) return;
+      activeFrame.contentWindow.postMessage({ type: "open-guide" }, location.origin);
+  });
+
+  const pageTitle = document.title;
+
+  function clearAntiTypeUpdateFlag(){
+      document.title = pageTitle;
+  }
+
+  window.addEventListener("message", (event)=>{
+      if(event.origin !== location.origin) return;
+      if(!event.data || event.data.type !== "anti-type-done") return;
+
+      const { title, body } = event.data;
+
+      if(typeof Notification !== "undefined" && Notification.permission === "granted"){
+          try { new Notification(title, { body }); } catch(e) {}
+      }
+
+      document.title = "● " + pageTitle;
+  });
+
+  window.addEventListener("focus", ()=>{
+      if(antiTypeFrame.classList.contains("show")) clearAntiTypeUpdateFlag();
+  });
+
+  document.getElementById("tool-overlay-close").addEventListener("click", ()=>{
+      toolOverlay.classList.remove("show");
+      toolOverlayFrame.src = "";
+      toolOverlayFrame.dataset.currentSrc = "";
+  });
+
+  </script>
 </body>
 </html>
