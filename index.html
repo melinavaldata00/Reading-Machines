@@ -771,15 +771,46 @@
   }, { threshold: [0] });
   presenterObserver.observe(presenterSentinel);
 
+  /* ------------------------------ */
+  /* SECTION-JUMP SCROLL — the whole page (landing, then the 4 tool        */
+  /* pages) advances in whole-section jumps: each wheel gesture moves      */
+  /* straight to the next/previous section instead of scrolling gradually  */
+  /* through it. A short cooldown after each jump swallows the extra       */
+  /* wheel events one trackpad swipe fires, so one gesture = one section.  */
+  /* NEXT and the index dots go through the same jumpTo(), so every way of */
+  /* moving through the site stays in sync.                                */
+  /* ------------------------------ */
+
+  const allSections = [document.querySelector(".landing"), ...pages];
+  let sectionIndex = 0;
+  let jumping = false;
+  let jumpCooldown = null;
+
+  function jumpTo(idx){
+      idx = Math.max(0, Math.min(allSections.length - 1, idx));
+      sectionIndex = idx;
+      jumping = true;
+      allSections[idx].scrollIntoView({ behavior: "smooth", block: "start" });
+      clearTimeout(jumpCooldown);
+      jumpCooldown = setTimeout(()=>{ jumping = false; }, 900);
+  }
+
+  window.addEventListener("wheel", (e)=>{
+      e.preventDefault();
+      if(jumping) return;
+      if(e.deltaY > 10) jumpTo(sectionIndex + 1);
+      else if(e.deltaY < -10) jumpTo(sectionIndex - 1);
+  }, { passive:false });
+
   document.getElementById("btn-next").addEventListener("click", ()=>{
       const next = (currentPage + 1) % pages.length;
-      pages[next].scrollIntoView({ behavior: "smooth", block: "center" });
+      jumpTo(1 + next);
   });
 
   indexBtns.forEach(btn=>{
       btn.addEventListener("click", ()=>{
           const idx = parseInt(btn.dataset.idx, 10);
-          pages[idx].scrollIntoView({ behavior: "smooth", block: "center" });
+          jumpTo(1 + idx);
       });
   });
 
