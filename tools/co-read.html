@@ -268,6 +268,37 @@ footer-note {
   padding: 12px 16px;
   margin-top: auto;
 }
+
+#guide-overlay{
+  display: none; position: fixed; inset: 0;
+  background: rgba(31,19,13,.55); z-index: 90;
+  align-items: center; justify-content: center;
+}
+#guide-overlay.show{ display: flex; }
+#guide-modal{
+  background: var(--bg); border: 1px solid var(--text);
+  width: min(560px, 90vw); max-height: 84vh; overflow-y: auto;
+  padding: 22px 26px;
+}
+#guide-modal h2{
+  font-family: "ABC Gaisyr", monospace; font-size: 15px;
+  letter-spacing: .04em; font-weight: 400; margin-bottom: 14px;
+}
+#guide-modal h3{
+  font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-dim); margin: 18px 0 8px;
+}
+#guide-modal p{ font-size: 12px; line-height: 1.6; color: var(--text); margin-bottom: 8px; }
+#guide-modal code{
+  font-family: "ABC Favorit", monospace; background: var(--text-faint);
+  padding: 1px 4px; font-size: 11px;
+}
+.field-table{ width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+.field-table td{ font-size: 11px; padding: 4px 0; border-bottom: 1px solid var(--text-faint); vertical-align: top; }
+.field-table td:first-child{ font-family: "ABC Favorit", monospace; color: var(--text); white-space: nowrap; padding-right: 12px; }
+.field-table td:last-child{ color: var(--text-dim); }
+#guide-actions{ display: flex; margin-top: 18px; border-top: 1px solid var(--text-faint); padding-top: 16px; }
+#guide-actions .b{ flex: 1; text-align: center; }
 </style>
 </head>
 <body>
@@ -277,8 +308,42 @@ footer-note {
   <button class="b" id="btn-import">import</button>
   <button class="b go" id="btn-run" disabled>read</button>
   <input type="file" accept="image/*" id="file-input" style="display:none">
+  <button class="b" id="btn-guide">how it works</button>
   <div style="flex:1"></div>
   <button class="b go" id="btn-reread" disabled>re-read</button>
+</div>
+
+<div id="guide-overlay">
+  <div id="guide-modal">
+    <h2>how reading loop works</h2>
+    <p>Unlike the other tools, OCR here runs entirely in your browser via
+    Tesseract.js — no server involved. The image is first cleaned up
+    (grayscale, contrast stretch, adaptive local-threshold binarization) to
+    help Tesseract separate text from busy or coloured backgrounds, then read.
+    Each recognised word becomes an editable shape: its position and text come
+    from Tesseract, and how "broken up" it looks is driven by two things —
+    the OCR confidence for that word, and how visually complex the word's own
+    pixels are (edge density and size). Low confidence or high complexity means
+    a sparser, more scattered pattern.</p>
+    <p>What you see is two layers per word: a soft, low-opacity fill (a
+    halftone-style "silhouette" of the ink), and a sparser dotted texture on
+    top tracing just the edges — together they're what makes the shape still
+    read as a letterform rather than random noise.</p>
+    <p><b>re-read</b> is the actual "loop": it renders the current state back
+    to an image and feeds that back into Tesseract, so the machine reads its
+    own already-abstracted output — confidence usually drops a bit each time,
+    which is blended with the previous reading so words don't flicker
+    unpredictably between passes.</p>
+    <h3>editing a word</h3>
+    <table class="field-table">
+      <tr><td>show as text</td><td>renders the word as real typeset text (pick a font) instead of the dot pattern — useful for actually arranging a layout</td></tr>
+      <tr><td>disperse</td><td>scatters the word's own dots apart from within, rather than moving the word</td></tr>
+      <tr><td>align left/center/right</td><td>lines up the x position of every selected word</td></tr>
+    </table>
+    <div id="guide-actions">
+      <button class="b" id="btn-guide-close">close</button>
+    </div>
+  </div>
 </div>
 
 <div id="main">

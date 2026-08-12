@@ -1299,3 +1299,12 @@ function drawGrid(st) {
     svgDoc.appendChild(line);
   });
 }
+document.getElementById('btn-guide').addEventListener('click', () => {
+  document.getElementById('guide-overlay').classList.add('show');
+});
+document.getElementById('btn-guide-close').addEventListener('click', () => {
+  document.getElementById('guide-overlay').classList.remove('show');
+});
+document.getElementById('guide-overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'guide-overlay') e.currentTarget.classList.remove('show');
+});
