@@ -446,12 +446,13 @@ body.page-is-white .open-page:hover{
   to{ transform:translateY(calc(-1 * var(--famp))); }
 }
 
-/* ---- 02 Blind Contour — each word starts as an abstract blob (a rough,  */
-/* jagged closed shape, seeded per word, no relation to the letterforms)   */
-/* — hovering resolves it into the actual legible word, and after a few    */
-/* seconds it decomposes back into the blob on its own, whether or not     */
-/* you're still hovering. A literal reading of "a contour you can trust    */
-/* exactly as much as it does": recognisable only briefly, then lost.      */
+/* ---- 02 Blind Contour — every word sits under a solid redaction bar,   */
+/* stamped on at a small seeded tilt, exactly the colour of the text it   */
+/* covers. Hovering lifts the bar away, revealing the word underneath;    */
+/* after a few seconds — automatically, whether or not you're still       */
+/* hovering — it drops back down and covers the word again. A literal     */
+/* reading of "a contour you can trust exactly as much as it does":       */
+/* recognisable only briefly, then withheld again.                        */
 .tool-page.tp-bc-exaggerate{
   padding:0;
   overflow:hidden;
@@ -478,7 +479,7 @@ body.page-is-white .open-page:hover{
   display:flex;
   flex-wrap:wrap;
   align-content:center;
-  gap:6px 34px;
+  gap:14px 34px;
   padding:220px 90px 60px 24px;
   overflow-y:auto;
 }
@@ -495,38 +496,20 @@ body.page-is-white .open-page:hover{
   line-height:1.15;
   color:var(--text);
   white-space:nowrap;
-  opacity:0;
-  transition:opacity .3s ease;
 }
-.bc-blob{
+.bc-bar{
   position:absolute;
-  left:-10%;
-  top:-22%;
-  width:120%;
-  height:144%;
+  inset:-8% -5%;
+  background:var(--text);
+  border-radius:1px;
+  transform:rotate(var(--btilt, 0deg)) translateY(0) scaleY(1);
+  transform-origin:center;
   opacity:1;
-  transition:opacity .3s ease;
   pointer-events:none;
-  animation:bcDrift var(--ddur, 8s) ease-in-out infinite;
-  animation-delay:var(--ddelay, 0s);
+  transition:transform .4s cubic-bezier(.65,0,.35,1), opacity .3s ease .1s;
 }
-.bc-blob path{
-  fill:none;
-  stroke:var(--text);
-  stroke-width:3.5;
-  stroke-linejoin:round;
-}
-@keyframes bcDrift{
-  0%   { transform:translate(0, 0) scale(1); }
-  25%  { transform:translate(4%, -5%) scale(1.03); }
-  50%  { transform:translate(-3%, 3%) scale(0.97); }
-  75%  { transform:translate(-4%, -3%) scale(1.02); }
-  100% { transform:translate(0, 0) scale(1); }
-}
-.bc-word.revealed .bc-label{
-  opacity:1;
-}
-.bc-word.revealed .bc-blob{
+.bc-word.revealed .bc-bar{
+  transform:rotate(var(--btilt, 0deg)) translateY(-140%) scaleY(.85);
   opacity:0;
 }
 
@@ -847,44 +830,16 @@ function wrapFloatBoxes(block){
     if(boxes.length) revealBox(0);
 }
 
-// 02 Blind Contour — each word is a seeded abstract blob: a smooth,
-// rounded, continuously morphing closed curve (unrelated to the word's
-// actual letterforms) that also drifts slowly in place, so it reads as
-// fluid and alive rather than a static shape. Overlaid on the word
-// itself, which starts invisible. Hovering reveals the word and hides
-// the blob; a few seconds later — automatically, regardless of whether
-// the mouse is still there — it decomposes back into the blob.
+// 02 Blind Contour — each word sits under a solid redaction bar, the same
+// colour as the text, stamped on at a small seeded tilt so the row doesn't
+// look machine-uniform. Hovering lifts the bar away and reveals the word;
+// a few seconds later — automatically, regardless of whether the mouse is
+// still there — it drops back down and covers the word again.
 function wrapAbstractWords(block){
     const text = block.dataset.text.replace(/\s+/g, ' ').trim();
     const blockIdx = wrapCounter++;
     const words = text.split(' ');
-    const SVG_NS = "http://www.w3.org/2000/svg";
     const REVEAL_MS = 2500;
-
-    // random points around a center, smoothed into a rounded closed blob
-    // by drawing quadratic curves through the midpoints between them —
-    // each raw point becomes a control point, not an on-path vertex, so
-    // corners round off instead of coming to sharp angles.
-    function smoothBlob(seed, variant){
-        const pts = 8;
-        const raw = [];
-        for(let i = 0; i < pts; i++){
-            const angle = (i / pts) * Math.PI * 2;
-            const r = 26 + seededRandom(seed + variant*17 + i*0.37) * 22; // 26–48
-            raw.push([
-                50 + Math.cos(angle) * r,
-                50 + Math.sin(angle) * r * 0.65 // flattened to suit a text-line box
-            ]);
-        }
-        const mid = (a, b)=> [(a[0]+b[0])/2, (a[1]+b[1])/2];
-        const fmt = p => p[0].toFixed(1) + "," + p[1].toFixed(1);
-        let d = "M " + fmt(mid(raw[raw.length-1], raw[0])) + " ";
-        for(let i = 0; i < raw.length; i++){
-            const next = raw[(i+1) % raw.length];
-            d += "Q " + fmt(raw[i]) + " " + fmt(mid(raw[i], next)) + " ";
-        }
-        return d + "Z";
-    }
 
     words.forEach((word, wi)=>{
         const wrap = document.createElement("span");
@@ -895,40 +850,14 @@ function wrapAbstractWords(block){
         label.className = "bc-label";
         label.textContent = word;
 
-        const svg = document.createElementNS(SVG_NS, "svg");
-        svg.setAttribute("class", "bc-blob");
-        svg.setAttribute("viewBox", "0 0 100 100");
-        svg.setAttribute("preserveAspectRatio", "none");
-
+        const bar = document.createElement("span");
+        bar.className = "bc-bar";
         const seed = blockIdx*1000 + wi;
-
-        // slow positional drift, out of phase per word, on top of the
-        // shape morph — "move in space", not just change shape in place
-        const driftDur   = (6 + seededRandom(seed + 0.4) * 5).toFixed(2) + "s";
-        const driftDelay = "-" + (seededRandom(seed + 0.5) * 6).toFixed(2) + "s";
-        svg.style.setProperty("--ddur", driftDur);
-        svg.style.setProperty("--ddelay", driftDelay);
-
-        const path = document.createElementNS(SVG_NS, "path");
-        const d0 = smoothBlob(seed, 0);
-        const d1 = smoothBlob(seed, 1);
-        const d2 = smoothBlob(seed, 2);
-        path.setAttribute("d", d0);
-
-        const morph = document.createElementNS(SVG_NS, "animate");
-        morph.setAttribute("attributeName", "d");
-        morph.setAttribute("values", d0 + ";" + d1 + ";" + d2 + ";" + d0);
-        morph.setAttribute("keyTimes", "0;0.33;0.66;1");
-        morph.setAttribute("calcMode", "spline");
-        morph.setAttribute("keySplines", ".42 0 .58 1;.42 0 .58 1;.42 0 .58 1");
-        morph.setAttribute("dur", (5 + seededRandom(seed + 0.6) * 4).toFixed(2) + "s");
-        morph.setAttribute("begin", "-" + (seededRandom(seed + 0.7) * 5).toFixed(2) + "s");
-        morph.setAttribute("repeatCount", "indefinite");
-        path.appendChild(morph);
-        svg.appendChild(path);
+        const tilt = (seededRandom(seed + 0.6) - 0.5) * 3.6; // -1.8..1.8deg
+        bar.style.setProperty("--btilt", tilt.toFixed(2) + "deg");
 
         wrap.appendChild(label);
-        wrap.appendChild(svg);
+        wrap.appendChild(bar);
 
         let revealTimer = null;
         wrap.addEventListener("mouseenter", ()=>{
