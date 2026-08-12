@@ -64,12 +64,6 @@
       position:relative;
       z-index:1;
     }
-    #publication-link{
-      position:fixed; top:18px; left:50%; transform:translateX(-50%);
-      font-size:13px; letter-spacing:.2em; font-family:"ABC Gaisyr", monospace;
-      color:var(--tp-text,#3fff00); z-index:250; text-decoration:none; opacity:.85; transition:opacity .2s;
-    }
-    #publication-link:hover{ opacity:.55; }
     #index-bar{
       position:fixed; left:24px; top:50%; transform:translateY(-50%);
       display:flex; flex-direction:column; gap:22px; z-index:250;
@@ -258,8 +252,6 @@
     <iframe id="anti-type-iframe" src="" title="Anti Type"></iframe>
     <iframe id="tool-overlay-iframe" src="" title="tool"></iframe>
   </div>
-
-  <a href="tools/publication.html" id="publication-link">PUBLICATION</a>
 
   <div id="index-bar">
     <button class="index-num active" data-idx="0">01</button>
