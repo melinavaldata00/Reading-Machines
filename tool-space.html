@@ -124,7 +124,7 @@ html,body{
 
 /* on the white OCR Skeleton page the index numbers switch to the same    */
 /* brown used by every button on that page, instead of green-on-white.    */
-#index-bar.on-white .index-num{
+body.page-is-white .index-num{
   color:#1f130d;
 }
 
@@ -159,6 +159,17 @@ html,body{
 .open-page:hover{
   background:var(--text);
   color:var(--bg);
+}
+
+/* on the white OCR Skeleton page these buttons switch to the same brown  */
+/* used everywhere else on white backgrounds, instead of green-on-white.  */
+body.page-is-white .open-page{
+  color:#1f130d;
+  border-color:#1f130d;
+}
+body.page-is-white .open-page:hover{
+  background:#1f130d;
+  color:#ffffff;
 }
 
 /* Opening a tool is just a layer on top of whichever presentation page    */
@@ -492,7 +503,7 @@ html,body{
 
 </style>
 </head>
-<body>
+<body class="page-is-white">
 
 <div id="tool-overlay">
   <div id="tool-overlay-bar">
@@ -508,7 +519,7 @@ html,body{
 <a href="tools/publication.html" id="publication-link">PUBLICATION</a>
 <a href="https://melinavaldata00.github.io/RMDocumentation/" id="go-to-docs" target="_blank" rel="noopener">documentation →</a>
 
-<div id="index-bar" class="on-white">
+<div id="index-bar">
   <button class="index-num active" data-idx="0">01</button>
   <button class="index-num" data-idx="1">02</button>
   <button class="index-num" data-idx="2">03</button>
@@ -556,7 +567,7 @@ html,body{
 
 </div>
 
-<button id="btn-go-tool" class="open-page">go to tool →</button>
+<button id="btn-go-tool" class="open-page">open tool →</button>
 <button id="btn-next" class="open-page">next →</button>
 
 <script>
@@ -777,14 +788,14 @@ document.querySelectorAll(".tp-text").forEach(renderReadingSystem);
 
 const pages       = Array.from(document.querySelectorAll(".tool-page"));
 const indexBtns   = Array.from(document.querySelectorAll(".index-num"));
-const indexBar    = document.getElementById("index-bar");
 let currentPage   = 0;
 
 function showPage(idx){
     currentPage = ((idx % pages.length) + pages.length) % pages.length;
     pages.forEach((p, i)=> p.classList.toggle("active", i === currentPage));
     indexBtns.forEach((b, i)=> b.classList.toggle("active", i === currentPage));
-    indexBar.classList.toggle("on-white", pages[currentPage].classList.contains("tp-float"));
+    // brown buttons/index on the white OCR Skeleton page, green everywhere else
+    document.body.classList.toggle("page-is-white", pages[currentPage].classList.contains("tp-float"));
 }
 
 document.getElementById("btn-next").addEventListener("click", ()=>{
