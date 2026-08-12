@@ -418,11 +418,22 @@ bindSlider('sl-lh',     'val-lh',     null);
   });
 });
 
-// parameters — re-run live
+// parameters — re-run live, but debounced: these trigger a full server
+// re-processing of every letter, so firing on every single 'input' tick
+// while the user drags the slider would queue up (and mostly waste) a
+// full re-run per tick. Wait until they pause for a moment instead.
+function debounce(fn, delay) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), delay);
+  };
+}
+const debouncedRerun = debounce(() => {
+  if (Object.keys(finalGlyphs).length > 0) document.getElementById('btn-run').click();
+}, 400);
 ['sl-iter','sl-thresh','sl-freq'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => {
-    if (Object.keys(finalGlyphs).length > 0) document.getElementById('btn-run').click();
-  });
+  document.getElementById(id).addEventListener('input', debouncedRerun);
 });
 
 // alignment
