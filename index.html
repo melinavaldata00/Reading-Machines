@@ -789,6 +789,10 @@
       // section we're headed to, no need to measure anything).
       document.body.classList.toggle("in-presenter", idx > 0);
       if(idx > 0) setCurrentPage(idx - 1);
+      // close the open-tool overlay on any section jump, even if the
+      // user didn't hit the close button -- scrolling away should feel
+      // like leaving the tool, not leaving it open behind the new page.
+      if(typeof closeToolOverlay === "function") closeToolOverlay();
       jumping = true;
       allSections[idx].scrollIntoView({ behavior: "smooth", block: "start" });
       clearTimeout(jumpCooldown);
@@ -882,11 +886,14 @@
       if(antiTypeFrame.classList.contains("show")) clearAntiTypeUpdateFlag();
   });
 
-  document.getElementById("tool-overlay-close").addEventListener("click", ()=>{
+  function closeToolOverlay(){
       toolOverlay.classList.remove("show");
       toolOverlayFrame.src = "";
       toolOverlayFrame.dataset.currentSrc = "";
-  });
+      antiTypeFrame.classList.remove("show");
+  }
+
+  document.getElementById("tool-overlay-close").addEventListener("click", closeToolOverlay);
 
   </script>
 </body>
