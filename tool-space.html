@@ -900,12 +900,13 @@ function wrapAntiTypeWrite(block){
 }
 
 // 04 Reading Loop — the text is chunked into phrase-length pieces (5-9
-// words), scattered across a small virtual space. Only the current piece
-// is a live link; clicking it pans the "camera" (a translated .rl-world)
-// so the next piece lands centered in the viewport. The last piece links
-// back to the first, so the sequence loops. Returns { start, stop } —
-// start() resets the camera to piece 0 and clears which pieces have been
-// visited, same pattern as Anti Type's typing hooks.
+// words), scattered widely across a large virtual space. The reading
+// auto-advances on a loop (every AUTO_DELAY ms the camera pans itself to
+// the next piece, wrapping back to the first at the end); clicking the
+// current piece jumps early and just resets that countdown, it doesn't
+// fight the automatic advance. Returns { start, stop } — start() resets
+// the camera to piece 0 and clears which pieces have been visited, same
+// pattern as Anti Type's typing hooks.
 function wrapCameraLinks(block){
     const raw = block.dataset.text.replace(/\s+/g, ' ').trim();
     const blockIdx = wrapCounter++;
@@ -934,7 +935,7 @@ function wrapCameraLinks(block){
     viewport.appendChild(world);
     block.appendChild(viewport);
 
-    const WORLD_W = 1500, WORLD_H = 900;
+    const WORLD_W = 4400, WORLD_H = 2600;
     const cols = Math.ceil(Math.sqrt(pieces.length));
     const rows = Math.ceil(pieces.length / cols);
     const cellW = WORLD_W / cols, cellH = WORLD_H / rows;
@@ -957,6 +958,8 @@ function wrapCameraLinks(block){
 
     let current = 0;
     const visited = new Set();
+    let autoTimer = null;
+    const AUTO_DELAY = 2800; // ms between automatic advances
 
     function panTo(idx){
         const vp = viewport.getBoundingClientRect();
@@ -973,11 +976,25 @@ function wrapCameraLinks(block){
         });
     }
 
+    function clearAuto(){
+        if(autoTimer){ clearTimeout(autoTimer); autoTimer = null; }
+    }
+
+    // the reading auto-advances on a loop; a manual click just jumps early
+    // and resets the countdown, instead of fighting the automatic one
+    function scheduleAuto(){
+        clearAuto();
+        autoTimer = setTimeout(()=>{
+            activate((current + 1) % items.length);
+        }, AUTO_DELAY);
+    }
+
     function activate(idx){
         current = idx;
         visited.add(idx);
         panTo(idx);
         setActive(idx);
+        scheduleAuto();
     }
 
     items.forEach((it, i)=>{
@@ -992,7 +1009,9 @@ function wrapCameraLinks(block){
         activate(0);
     }
 
-    function stop(){}
+    function stop(){
+        clearAuto();
+    }
 
     return { start, stop };
 }
