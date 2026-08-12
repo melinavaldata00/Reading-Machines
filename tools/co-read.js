@@ -185,6 +185,14 @@ function cellDarkFraction(get, threshold, x, y, step) {
   return total ? dark / total : 0;
 }
 
+// each dot also gets a fixed random direction/reach (_da/_dm), assigned
+// once at extraction time — this is what the "disperse" control in the
+// edit panel later uses to scatter the shape apart from within, rather
+// than moving the word as a rigid block.
+function makeDot(x, y, r) {
+  return { x, y, r, _da: Math.random() * Math.PI * 2, _dm: Math.random() };
+}
+
 function extractContours(imageData, bx, by, bw, bh, fullW, degradation = 0, baseThreshold = 128) {
   const data = imageData.data;
   const spread = 5 + degradation * 4;
@@ -204,7 +212,7 @@ function extractContours(imageData, bx, by, bw, bh, fullW, degradation = 0, base
     grid.push(row);
   }
 
-  let d = '';
+  const dots = [];
   const baseStep = Math.max(3, Math.floor(Math.min(bw, bh) / 16));
   const step = Math.max(3, Math.round(baseStep * (1 + degradation * 0.2)));
   const offX = Math.floor(Math.random() * step);
@@ -223,11 +231,11 @@ function extractContours(imageData, bx, by, bw, bh, fullW, degradation = 0, base
       const left  = x - step >= 0 ? grid[gy][Math.max(0, x - step)] : 0;
       const up    = y - step >= 0 ? grid[Math.max(0, y - step)][gx] : 0;
       if (!right || !down || !left || !up) {
-        d += circleDot(x + step / 2, y + step / 2, r);
+        dots.push(makeDot(x + step / 2, y + step / 2, r));
       }
     }
   }
-  return d ? [d] : [];
+  return dots;
 }
 
 function extractSilhouette(imageData, bx, by, bw, bh, fullW, degradation = 0, baseThreshold = 128) {
@@ -248,17 +256,17 @@ function extractSilhouette(imageData, bx, by, bw, bh, fullW, degradation = 0, ba
   const dropout = Math.min(0.1, degradation * 0.018);
   const maxR = step * 0.56;
 
-  let d = '';
+  const dots = [];
   for (let y = -offY; y < bh; y += step) {
     for (let x = -offX; x < bw; x += step) {
       const frac = cellDarkFraction(get, threshold, Math.max(0, x), Math.max(0, y), step);
       if (frac <= 0.08) continue;
       if (Math.random() < dropout) continue;
       const r = maxR * Math.sqrt(frac);
-      d += circleDot(x + step / 2, y + step / 2, r);
+      dots.push(makeDot(x + step / 2, y + step / 2, r));
     }
   }
-  return d ? [d] : [];
+  return dots;
 }
 
 // ── geometric shape fallback for illegible groups ───────────
@@ -318,9 +326,21 @@ function renderGroupVisual(g) {
     p.style.strokeWidth = '1';
     gEl.appendChild(p);
   } else {
-    const pathsToRender = g.paths;  // outline/edge texture; fill is controlled by fillOpacity
     const strokeColor = g.customColor || '#000000';
     const opacity = (g.customOpacity !== undefined ? g.customOpacity : 100) / 100;
+
+    // "disperse" scatters each dot from where it was extracted, along its
+    // own fixed random direction (_da/_dm, assigned once when the dot was
+    // created) — the shape gradually decomposes into a loose cloud as the
+    // slider goes up, instead of the whole word sliding around as a block.
+    const disperseAmt = (g.disperseAmount || 0) / 100;
+    const maxReach = Math.max(g.w, g.h) * 0.9;
+    const dotsToPath = dots => dots.reduce((d, dot) => {
+      const reach = disperseAmt * maxReach * dot._dm;
+      const dx = Math.cos(dot._da) * reach;
+      const dy = Math.sin(dot._da) * reach;
+      return d + circleDot(dot.x + dx, dot.y + dy, dot.r);
+    }, '');
 
     // legibility base — the silhouette (all dark cells, not just edges) drawn
     // as a soft, low, fixed-opacity fill underneath the sparse edge texture.
@@ -328,19 +348,19 @@ function renderGroupVisual(g) {
     // outline on top still carries the "machine-read" texture, but no longer
     // has to do the job of legibility on its own.
     const silhouette = g.fillPaths || [];
-    silhouette.forEach(d => {
+    if (silhouette.length) {
       const p = document.createElementNS(SVG_NS, 'path');
-      p.setAttribute('d', d);
+      p.setAttribute('d', dotsToPath(silhouette));
       p.setAttribute('transform', `translate(${g.x} ${g.y})`);
       p.style.fill = g.customColor || '#000000';
       p.style.fillOpacity = Math.max(0.28, g.fill / 100) * 0.6 * opacity;
       p.style.stroke = 'none';
       gEl.appendChild(p);
-    });
+    }
 
-    pathsToRender.forEach(d => {
+    if (g.paths.length) {
       const p = document.createElementNS(SVG_NS, 'path');
-      p.setAttribute('d', d);
+      p.setAttribute('d', dotsToPath(g.paths));
       p.setAttribute('transform', `translate(${g.x} ${g.y})`);
       // fill is always applied with proportional opacity — 0=transparent, 100=opaque
       p.style.fill = g.customColor || '#000000';
@@ -349,7 +369,7 @@ function renderGroupVisual(g) {
       p.style.strokeOpacity = opacity;
       p.style.strokeWidth = '1';
       gEl.appendChild(p);
-    });
+    }
   }
   return gEl;
 }
@@ -1053,25 +1073,13 @@ document.getElementById('ep-align-left').addEventListener('click', () => alignSe
 document.getElementById('ep-align-center').addEventListener('click', () => alignSelection('center'));
 document.getElementById('ep-align-right').addEventListener('click', () => alignSelection('right'));
 
-// scatters each selected word from a fixed reference point captured the
-// first time it's dispersed — a random but stable direction per group, so
-// dragging the slider is a smooth, reversible scatter instead of new
-// randomness on every tick.
+// scatters the dots that make up each selected word's shape (see
+// dotsToPath in renderGroupVisual) rather than moving the word itself —
+// the word's position/bounding box is untouched.
 document.getElementById('ep-disperse').addEventListener('input', e => {
   if (!S.selectedGroup) return;
   const v = parseInt(e.target.value);
-  const maxOffset = Math.min(S.W, S.H) * 0.2;
-  S.selectedGroups.forEach(g => {
-    if (g._dispBaseX === undefined) {
-      g._dispBaseX = g.x; g._dispBaseY = g.y;
-      const angle = Math.random() * Math.PI * 2;
-      g._dispDirX = Math.cos(angle); g._dispDirY = Math.sin(angle);
-    }
-    g.disperseAmount = v;
-    g.x = g._dispBaseX + g._dispDirX * (v / 100) * maxOffset;
-    g.y = g._dispBaseY + g._dispDirY * (v / 100) * maxOffset;
-    g.cx = g.x + g.w / 2; g.cy = g.y + g.h / 2;
-  });
+  S.selectedGroups.forEach(g => { g.disperseAmount = v; });
   draw();
 });
 
