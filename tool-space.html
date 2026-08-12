@@ -40,20 +40,6 @@ html,body{
   overflow:hidden;
 }
 
-#viewport{
-  position:fixed;
-  inset:0;
-  overflow:hidden;
-}
-
-#world{
-  position:absolute;
-  top:0; left:0;
-  width:6000px;
-  height:4000px;
-  will-change:transform;
-}
-
 /* publication isn't a tool — it lives outside the canvas/overlay      */
 /* system entirely, reached instead through this persistent top-center   */
 /* link, in the spot ENTER used to occupy before it moved to index.html. */
@@ -110,6 +96,8 @@ html,body{
   opacity:1;
 }
 
+/* left-hand page index — now jumps between the 4 presentation pages     */
+/* instead of panning the old canvas.                                    */
 #index-bar{
   position:fixed;
   left:24px;
@@ -119,6 +107,27 @@ html,body{
   flex-direction:column;
   gap:22px;
   z-index:50;
+}
+
+.index-num{
+  background:none;
+  border:none;
+  color:var(--text);
+  font-family:"ABC Gaisyr", monospace;
+  font-size:12px;
+  letter-spacing:.1em;
+  cursor:pointer;
+  padding:0;
+  opacity:.4;
+  transition:opacity .2s;
+}
+
+.index-num:hover{
+  opacity:.8;
+}
+
+.index-num.active{
+  opacity:1;
 }
 
 .open-tool,
@@ -364,206 +373,151 @@ html,body{
 #anti-type-iframe.show{ display:block; }
 #anti-type-iframe.show ~ #tool-overlay-iframe{ display:none; }
 
-.index-num{
-  background:none;
-  border:none;
-  color:var(--text);
-  font-family:"ABC Gaisyr", monospace;
-  font-size:12px;
-  letter-spacing:.1em;
-  cursor:pointer;
-  padding:0;
-  transition:color .2s;
-}
+/* ------------------------------ */
+/* PRESENTER — 4 full sequential pages, one per tool, each reading its   */
+/* description text through its own bespoke visual system instead of a   */
+/* plain paragraph.                                                       */
+/* ------------------------------ */
 
-.index-num:hover{
-  opacity: 55%;
-}
-
-/* Shown every time you arrive here from index.html, then fades out.    */
-/* Sits in the dead center of the screen, independent of PUBLICATION's   */
-/* fixed spot at the bottom.                                              */
-#hint{
+#presenter{
   position:fixed;
   inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  font-size:16px;
-  letter-spacing:.1em;
-  color:var(--text);
-  z-index:51;
-  pointer-events:none;
-  opacity:0;
-  transition:opacity 1s ease; /* only used going out, see .show below */
-  background:rgba(23,13,3,.35);
-  backdrop-filter:blur(14px);
-  -webkit-backdrop-filter:blur(14px);
+  z-index:10;
 }
 
-/* Blur is at full strength the instant .show is added — no fading in.  */
-/* Removing .show falls back to the transition above, so it fades OUT.  */
-#hint.show{
-  opacity:1;
-  transition:none;
-}
-
-.fragment{
+.tool-page{
   position:absolute;
-  max-width:520px;
-}
-
-.frag-row{
-  display:flex;
-  align-items:flex-start;
-  gap:18px;
-}
-
-.frag-title-vert{
-  display:flex;
-  flex-direction:row;
-  gap:10px;
-  flex-shrink:0;
-  font-family:"ABC Gaisyr", monospace;
-  font-size:22px;
-  line-height:1.05;
-  padding-top:2px;
-}
-
-.vt-col{
-  display:flex;
+  inset:0;
+  display:none;
   flex-direction:column;
+  justify-content:center;
+  padding:0 90px;
+  overflow-y:auto;
 }
 
-.frag-title-vert .vt-letter{
-  display:block;
-  will-change:transform;
+.tool-page.active{
+  display:flex;
 }
 
-.frag-title-vert .vt-gap{
-  display:block;
-  height:.55em;
+.tp-inner{
+  max-width:760px;
+  width:100%;
 }
 
-.frag-body{
-  flex:1;
-  min-width:0;
+.tp-head{
+  display:flex;
+  align-items:baseline;
+  gap:16px;
+  margin-bottom:34px;
 }
 
-.fragment-tag{
-  font-size:10px;
-  letter-spacing:.12em;
+.tp-num{
+  font-family:"ABC Gaisyr", monospace;
+  font-size:13px;
+  letter-spacing:.15em;
   color:var(--text-dim);
-  margin-bottom:8px;
 }
 
-.fragment-text{
-  font-size:18px;
-  line-height:1.5;
+.tp-title{
+  font-family:"ABC Gaisyr", monospace;
+  font-size:30px;
+  letter-spacing:.03em;
+  font-weight:400;
+}
+
+.tp-text{
   font-family:"ABC Favorit", monospace;
+  font-size:19px;
+  line-height:1.55;
 }
 
-.frag-line{
-  display:block;
-  width:max-content;
-  max-width:100%;
+/* fade/rise entrance — replays every time a page's display switches      */
+/* back from none to flex, since CSS animations restart on that toggle,   */
+/* no JS needed to re-trigger it.                                          */
+@keyframes tpFadeUp{
+  from{ opacity:0; transform:translateY(10px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+.tool-page.active .tp-head{
+  animation:tpFadeUp .5s ease both;
 }
 
-.fragment-text.small{
-  font-size:15px;
-  opacity:.85;
-}
-
-/* OCR Skeleton's own reading system: one word per full-width row, each  */
-/* bordered like a bounding box, staggered left/right row to row — the   */
-/* fragment literally looks like OCR output: a stack of boxes, one guess */
-/* at a time, instead of a normal paragraph.                             */
+/* ---- 01 OCR Skeleton — bounding-box rows, one word per full-width     */
+/* row, staggered left/right, like a stack of OCR guesses.                */
 .frag-boxrow{
   display:flex;
   width:100%;
   border-bottom:1px solid var(--text-faint);
-  padding:5px 0;
+  padding:7px 0;
+  animation:tpFadeUp .45s ease both;
 }
 .frag-boxrow:first-child{ border-top:1px solid var(--text-faint); }
 .box-word{ white-space:nowrap; }
 
-.letter{
+/* ---- 02 Blind Contour — outline only, fills solid on hover, exactly   */
+/* like the tool: shapes are kept only once you look closely enough.     */
+.tp-text[data-style="outline"] .word{
   display:inline-block;
-  will-change:transform, opacity;
-  padding:6px 2px;
-  margin:-6px -2px;
+  color:transparent;
+  -webkit-text-stroke:1px var(--text);
+  transition:color .2s ease, -webkit-text-stroke-color .2s ease;
+  animation:tpFadeUp .45s ease both;
+}
+.tp-text[data-style="outline"] .word:hover{
+  color:var(--text);
 }
 
-.clickable{
-  cursor:pointer;
+/* ---- 03 Anti Type — each letter keeps a small, continuous, independent */
+/* jitter: always legible, never still — a typeface built to resist        */
+/* settling into something a machine could lock onto.                      */
+@keyframes letterJitter{
+  0%   { transform:translate(0,0) rotate(0deg); }
+  50%  { transform:translate(var(--jx), var(--jy)) rotate(var(--jr)); }
+  100% { transform:translate(0,0) rotate(0deg); }
+}
+.tp-text[data-style="jitter"] .letter{
+  display:inline-block;
+  animation:letterJitter var(--jdur) ease-in-out infinite;
+  animation-delay:var(--jdelay);
 }
 
-#link-overlay{
-  position:fixed;
-  inset:0;
-  width:100%;
-  height:100%;
-  pointer-events:none;
-  z-index:40;
-}
-
-#link-overlay path{
-  fill:none;
-  stroke:var(--text);
-  stroke-width:1.5;
-  opacity:.85;
-}
-
-.user-note{
+/* ---- 04 Reading Loop — two layers of the same text, one crisp, one     */
+/* ghosted and slowly drifting — clean text for the machine, textured      */
+/* residue for the eye, exactly as the tool itself produces.               */
+.tp-text[data-style="ghost"]{
   position:relative;
-  background:var(--text);
-  color:var(--bg);
-  padding:12px 14px;
-  max-width:160px;
-  box-shadow:2px 3px 6px rgba(0,0,0,.35);
+}
+.ghost-crisp{
+  position:relative;
+  z-index:1;
+}
+.ghost-layer{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  color:var(--text-dim);
+  opacity:.5;
+  animation:ghostDrift 7s ease-in-out infinite alternate;
+  pointer-events:none;
+}
+@keyframes ghostDrift{
+  0%   { transform:translate(0,0); }
+  100% { transform:translate(4px, 3px); }
 }
 
-.user-note .fragment-text,
-.user-note .fragment-text .letter{
-  color:var(--bg);
-  font-family:"ABC Stefan", monospace;
-}
-
-.note-input{
-  font-family:"ABC Stefan", monospace;
-  font-size:15px;
-  color:var(--bg);
-  background:transparent;
-  border:none;
-  outline:none;
-  width:140px;
-  padding:2px 0;
-}
-
-.note-input::placeholder{
-  color:rgba(43,26,9,.55);
-}
-
-#recenter{
+/* ---- NEXT / GO TO TOOL — fixed corner controls for moving through the  */
+/* 4 pages and jumping into whichever tool is currently on screen.         */
+#btn-next{
   position:fixed;
   bottom:18px;
-  right:18px;
-  width:34px;
-  height:34px;
-  border:1px solid var(--text-dim);
-  border-radius:50%;
-  background:transparent;
-  color:var(--text);
-  cursor:pointer;
-  font-size:14px;
+  right:22px;
   z-index:50;
-  transition:color .2s, border-color .2s;
 }
-
-#recenter:hover{
-  color:var(--text);
-  border-color:var(--text);
+#btn-go-tool{
+  position:fixed;
+  bottom:18px;
+  left:24px;
+  z-index:50;
 }
 
 </style>
@@ -590,90 +544,63 @@ html,body{
   </div>
 </div>
 
-<a href="index.html" id="back-to-start" class="frag-title-vert" data-title="back to start"></a>
+<a href="index.html" id="back-to-start">← back to start</a>
 <a href="tools/publication.html" id="publication-link">PUBLICATION</a>
-<div id="hint">scroll in any direction — double-click to leave a note</div>
+<a href="https://melinavaldata00.github.io/RMDocumentation/" id="go-to-docs" target="_blank" rel="noopener">documentation →</a>
 
 <div id="index-bar">
-  <button class="index-num" data-target="f1">01</button>
-  <button class="index-num" data-target="f2">02</button>
-  <button class="index-num" data-target="f3">03</button>
-  <button class="index-num" data-target="f4">04</button>
+  <button class="index-num active" data-idx="0">01</button>
+  <button class="index-num" data-idx="1">02</button>
+  <button class="index-num" data-idx="2">03</button>
+  <button class="index-num" data-idx="3">04</button>
 </div>
 
-<a href="https://melinavaldata00.github.io/RMDocumentation/" id="go-to-docs" class="frag-title-vert" data-title="go to documentation" target="_blank" rel="noopener"></a>
+<div id="presenter">
 
-<button id="recenter" title="back to center">◎</button>
-
-<svg id="link-overlay">
-  <defs>
-    <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-      <path d="M0,0 L8,4 L0,8" fill="none" stroke="var(--text)" stroke-width="1.5"/>
-    </marker>
-  </defs>
-</svg>
-
-<div id="viewport">
-  <div id="world">
-
-    <div class="fragment clickable" id="f1" data-link="f3" style="top:1800px; left:1900px;">
-      <div class="frag-row">
-        <div class="frag-title-vert" data-title="OCR Skeleton"></div>
-        <div class="frag-body">
-          <div class="fragment-tag">01</div>
-          <div class="fragment-text" data-style="boxrows" data-text="The machine doesn't see a page — it sees boxes, guesses, and a confidence score for each. What it's sure of survives as text; everything else collapses into geometry. Feed the result back in, and it starts reading its own uncertainty."></div>
-          <button class="open-tool" data-tool-src="tools/position-zero.html" data-tool-name="OCR Skeleton">→ open tool</button>
-        </div>
+  <section class="tool-page active" data-idx="0" data-tool-src="tools/position-zero.html" data-tool-name="OCR Skeleton">
+    <div class="tp-inner">
+      <div class="tp-head">
+        <span class="tp-num">01</span>
+        <span class="tp-title">OCR Skeleton</span>
       </div>
+      <div class="tp-text" data-style="boxrows" data-text="The machine doesn't see a page — it sees boxes, guesses, and a confidence score for each. What it's sure of survives as text; everything else collapses into geometry. Feed the result back in, and it starts reading its own uncertainty."></div>
     </div>
+  </section>
 
-    <div class="fragment" id="f2" style="top:1400px; left:2700px;">
-      <div class="frag-row">
-        <div class="frag-title-vert" data-title="Blind Contour"></div>
-        <div class="frag-body">
-          <div class="fragment-tag">02</div>
-          <div class="fragment-text" data-text="The machine keeps only the shapes it recognizes as| writing and discards the rest as noise, handing back |pure outline — a contour you can scale, rotate, or trust |exactly as much as it does."></div>
-          <button class="open-tool" data-tool-src="tools/outline.html" data-tool-name="Blind Contour">→ open tool</button>
-        </div>
+  <section class="tool-page" data-idx="1" data-tool-src="tools/outline.html" data-tool-name="Blind Contour">
+    <div class="tp-inner">
+      <div class="tp-head">
+        <span class="tp-num">02</span>
+        <span class="tp-title">Blind Contour</span>
       </div>
+      <div class="tp-text" data-style="outline" data-text="The machine keeps only the shapes it recognizes as writing and discards the rest as noise, handing back pure outline — a contour you can scale, rotate, or trust exactly as much as it does."></div>
     </div>
+  </section>
 
-    <div class="fragment" id="f3" style="top:2400px; left:3300px;">
-      <div class="frag-row">
-        <div class="frag-title-vert" data-title="Anti Type"></div>
-        <div class="frag-body">
-          <div class="fragment-tag">03</div>
-          <div class="fragment-text" data-text="Each glyph gets pushed until OCR can no longer| recognize it, becoming part of a typeface that stays |legible to your eyes but not to the machine that| shaped it."></div>
-          <button class="open-tool" data-tool-src="tools/anti-ocr.html" data-tool-name="Anti Type">→ open tool</button>
-        </div>
+  <section class="tool-page" data-idx="2" data-tool-src="tools/anti-ocr.html" data-tool-name="Anti Type">
+    <div class="tp-inner">
+      <div class="tp-head">
+        <span class="tp-num">03</span>
+        <span class="tp-title">Anti Type</span>
       </div>
+      <div class="tp-text" data-style="jitter" data-text="Each glyph gets pushed until OCR can no longer recognize it, becoming part of a typeface that stays legible to your eyes but not to the machine that shaped it."></div>
     </div>
+  </section>
 
-    <div class="fragment" id="f4" style="top:2000px; left:4200px;">
-      <div class="frag-row">
-        <div class="frag-title-vert" data-title="Reading Loop"></div>
-        <div class="frag-body">
-          <div class="fragment-tag">04</div>
-          <div class="fragment-text" data-text="Read, misread, correct, read again. Each pass leaves |something behind — clean text for the machine,| textured residue for the eye. Two layers, one page,| two different readers."></div>
-          <button class="open-tool" data-tool-src="tools/co-read.html" data-tool-name="Reading Loop">→ open tool</button>
-        </div>
+  <section class="tool-page" data-idx="3" data-tool-src="tools/co-read.html" data-tool-name="Reading Loop">
+    <div class="tp-inner">
+      <div class="tp-head">
+        <span class="tp-num">04</span>
+        <span class="tp-title">Reading Loop</span>
       </div>
+      <div class="tp-text" data-style="ghost" data-text="Read, misread, correct, read again. Each pass leaves something behind — clean text for the machine, textured residue for the eye. Two layers, one page, two different readers."></div>
     </div>
+  </section>
 
-    <div class="fragment" id="q1" style="top:1650px; left:2100px;">
-      <div class="fragment-text small" data-text="What do machines actually do when |they &quot;read&quot;?"></div>
-    </div>
-
-    <div class="fragment clickable" id="q2" data-link="f1" style="top:2350px; left:3900px;">
-      <div class="fragment-text small" data-text="Can a probability be a layout decision?"></div>
-    </div>
-
-    <div class="fragment clickable" id="q3" data-link="f2" style="top:1950px; left:2950px;">
-      <div class="fragment-text small" data-text="Where does meaning end, and form begin?"></div>
-    </div>
-
-  </div>
 </div>
+
+<button id="btn-go-tool" class="open-page">go to tool →</button>
+<button id="btn-next" class="open-page">next →</button>
 
 <script>
 
@@ -687,604 +614,147 @@ function seededRandom(seed){
 }
 
 /* ------------------------------ */
-/* WRAP LETTERS — riusabile anche per le note utente */
+/* READING SYSTEMS — one bespoke visual treatment per tool page, each    */
+/* built from the same plain data-text string.                            */
 /* ------------------------------ */
 
 let wrapCounter = 0;
 
-// OCR Skeleton's fragment renders as a stack of full-width bounding-box
-// rows, one word per row, staggered left/right — a different reading
-// system from the scatter/converge one below, but sharing the same
-// focus-driven fade (via .letter opacity) so it still belongs to the
-// same "bring it into focus to read it" logic as every other fragment.
+// 01 OCR Skeleton — one word per full-width bounding-box row, staggered
+// left/right, like a stack of OCR guesses read one at a time.
 function wrapBoxRows(block){
-
-    const text = block.dataset.text.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+    const text = block.dataset.text.replace(/\s+/g, ' ').trim();
     const blockIdx = wrapCounter++;
     const words = text.split(' ');
-    let i = 0;
 
     words.forEach((word, wi)=>{
-
         const row = document.createElement("div");
         row.className = "frag-boxrow";
 
-        // stagger the word's horizontal position row to row — seeded so
-        // it's stable across re-renders, biased toward the left two
-        // thirds of the row so words don't clip against the right edge
         const seed = blockIdx*1000 + wi;
         const indent = seededRandom(seed) * 55; // 0–55% from the left
         row.style.paddingLeft = indent.toFixed(1) + '%';
+        row.style.animationDelay = (wi * 0.045).toFixed(3) + 's';
 
         const wordSpan = document.createElement("span");
         wordSpan.className = "word box-word";
+        wordSpan.textContent = word;
+
+        row.appendChild(wordSpan);
+        block.appendChild(row);
+    });
+}
+
+// 02 Blind Contour — word-level outline, transparent fill, fills solid on
+// hover only — the browser equivalent of "kept only once looked at closely".
+function wrapOutline(block){
+    const text = block.dataset.text.replace(/\s+/g, ' ').trim();
+    const words = text.split(' ');
+
+    words.forEach((word, wi)=>{
+        const span = document.createElement("span");
+        span.className = "word";
+        span.textContent = word;
+        span.style.animationDelay = (wi * 0.04).toFixed(3) + 's';
+        block.appendChild(span);
+        block.appendChild(document.createTextNode(" "));
+    });
+}
+
+// 03 Anti Type — per-letter continuous micro-jitter, small enough to stay
+// legible at all times, each letter on its own random-but-fixed timing.
+function wrapJitter(block){
+    const text = block.dataset.text;
+    const blockIdx = wrapCounter++;
+    let i = 0;
+
+    text.split(" ").forEach((word, wi)=>{
+        const wordSpan = document.createElement("span");
+        wordSpan.className = "word";
 
         word.split("").forEach(ch=>{
             const span = document.createElement("span");
             span.className = "letter";
             span.textContent = ch;
-            span.dataset.char = ch;
-            // no scatter for this reading system — only the focus fade applies
-            span.dataset.dx = "0";
-            span.dataset.dy = "0";
-            span.dataset.rot = "0";
-            i++;
+
+            const seed = blockIdx*1000 + i++;
+            const jx = (seededRandom(seed)        - 0.5) * 3;   // px
+            const jy = (seededRandom(seed + 0.33)  - 0.5) * 3;   // px
+            const jr = (seededRandom(seed + 0.66)  - 0.5) * 6;   // deg
+            const jdur   = 2.2 + seededRandom(seed + 0.5) * 2;   // s
+            const jdelay = seededRandom(seed + 0.8) * 3;         // s
+
+            span.style.setProperty("--jx", jx.toFixed(2) + "px");
+            span.style.setProperty("--jy", jy.toFixed(2) + "px");
+            span.style.setProperty("--jr", jr.toFixed(2) + "deg");
+            span.style.setProperty("--jdur", jdur.toFixed(2) + "s");
+            span.style.setProperty("--jdelay", jdelay.toFixed(2) + "s");
+
             wordSpan.appendChild(span);
         });
 
-        row.appendChild(wordSpan);
-        block.appendChild(row);
-
+        block.appendChild(wordSpan);
+        if(wi < text.split(" ").length - 1) block.appendChild(document.createTextNode(" "));
     });
 }
 
-function wrapText(block){
-
-    if(block.dataset.style === "boxrows"){
-        wrapBoxRows(block);
-        return;
-    }
-
+// 04 Reading Loop — the same text rendered twice: one crisp layer for the
+// machine, one dimmer layer drifting slowly behind it for the eye.
+function wrapGhost(block){
     const text = block.dataset.text;
-    const blockIdx = wrapCounter++;
-    let i = 0;
 
-    // Type | anywhere inside data-text to force a manual line break there.
-    const lines = text.split("|");
+    const crisp = document.createElement("span");
+    crisp.className = "ghost-crisp";
+    crisp.textContent = text;
 
-    lines.forEach((line, li)=>{
+    const ghost = document.createElement("span");
+    ghost.className = "ghost-layer";
+    ghost.textContent = text;
+    ghost.setAttribute("aria-hidden", "true");
 
-        const lineEl = document.createElement("div");
-        lineEl.className = "frag-line";
-
-        // Letters are grouped into a per-word wrapper so the browser only
-        // ever breaks the line between words (at a real space character)
-        // — never in the middle of one. Each .word is a plain inline span
-        // with no whitespace between its letter children, so it can't
-        // split internally.
-        const words = line.split(" ");
-
-        words.forEach((word, wi)=>{
-
-            const wordSpan = document.createElement("span");
-            wordSpan.className = "word";
-
-            word.split("").forEach(ch=>{
-
-                const span = document.createElement("span");
-                span.className = "letter";
-                span.textContent = ch;
-                span.dataset.char = ch;
-
-                const seed = blockIdx*1000 + i++;
-
-                const dx = (seededRandom(seed)       - 0.5) * 260;
-                const dy = (seededRandom(seed+0.33)  - 0.5) * 260;
-                const rot = (seededRandom(seed+0.66) - 0.5) * 220;
-
-                span.dataset.dx = dx.toFixed(1);
-                span.dataset.dy = dy.toFixed(1);
-                span.dataset.rot = rot.toFixed(1);
-
-                wordSpan.appendChild(span);
-
-            });
-
-            lineEl.appendChild(wordSpan);
-
-            if(wi < words.length - 1){
-                lineEl.appendChild(document.createTextNode(" "));
-                i++; // keep seeds stable/unique across the skipped space slot
-            }
-
-        });
-
-        block.appendChild(lineEl);
-
-    });
-
-    // The whole block tilts together, as one — every line shares the exact
-    // same angle, so the paragraph reads as one crooked piece of type set
-    // at a slant, not as separate lines each leaning their own way.
-    block.style.transform = `rotate(${tiltFor(blockIdx).toFixed(2)}deg)`;
-
+    block.appendChild(crisp);
+    block.appendChild(ghost);
 }
 
-// One small, consistent tilt per text block (seeded so it's stable across
-// re-renders, and varies a bit fragment to fragment).
-function tiltFor(blockIdx){
-    const amplitude = 4; // degrees
-    return (seededRandom(blockIdx * 7.13) - 0.5) * 2 * amplitude;
-}
-
-document.querySelectorAll(".fragment-text").forEach(wrapText);
-
-/* ------------------------------ */
-/* VERTICAL TITLE — tool name stacked letter by letter, each one nudged   */
-/* slightly left/right, reading down instead of across (ref: HFBK          */
-/* "Writing In Future" logotype).                                          */
-/* ------------------------------ */
-
-let vtCounter = 0;
-
-function renderVerticalTitle(el){
-
-    // Clean vertical stacks, left-aligned, no jitter — matches the
-    // reference (HFBK "Writing In Future"): letters read straight down.
-    // Multi-word titles are split across two side-by-side columns instead
-    // of one single tall column, so the title never ends up taller than
-    // its own description next to it. The split point is chosen to keep
-    // both columns as close in height as possible.
-    const title = el.dataset.title || "";
-    const words = title.split(" ").filter(w => w.length > 0);
-
-    let splitAt = words.length;
-    if(words.length > 1){
-        const total = words.reduce((sum, w)=> sum + w.length, 0);
-        let running = 0;
-        let best = Infinity;
-        for(let i = 0; i < words.length - 1; i++){
-            running += words[i].length;
-            const diff = Math.abs(running - total/2);
-            if(diff < best){ best = diff; splitAt = i + 1; }
-        }
-    }
-
-    function buildCol(wordsGroup){
-        const col = document.createElement("div");
-        col.className = "vt-col";
-
-        wordsGroup.forEach((word, wi)=>{
-
-            word.split("").forEach(ch=>{
-                const span = document.createElement("span");
-                span.className = "vt-letter";
-                span.textContent = ch;
-                col.appendChild(span);
-            });
-
-            if(wi < wordsGroup.length - 1){
-                const gap = document.createElement("span");
-                gap.className = "vt-gap";
-                col.appendChild(gap);
-            }
-
-        });
-
-        return col;
-    }
-
-    el.appendChild(buildCol(words.slice(0, splitAt)));
-
-    const col2Words = words.slice(splitAt);
-    if(col2Words.length){
-        el.appendChild(buildCol(col2Words));
-    }
-
-}
-
-document.querySelectorAll(".frag-title-vert").forEach(renderVerticalTitle);
-
-/* ------------------------------ */
-/* PAN STATE */
-/* ------------------------------ */
-
-const viewport = document.getElementById("viewport");
-const world = document.getElementById("world");
-
-let tx = 0, ty = 0;
-let scale = 1;
-const minScale = 1, maxScale = 2.5;
-let homeTx = 0, homeTy = 0;
-
-function setInitialPosition(){
-    // centro approssimativo del primo frammento (f1)
-    const focusX = 1900 + 140;
-    const focusY = 1800 + 50;
-
-    // offset volontario: il testo è "intravisto", non già a fuoco pieno
-    const offsetX = 160;
-    const offsetY = 110;
-
-    tx = (window.innerWidth/2)  - focusX + offsetX;
-    ty = (window.innerHeight/2) - focusY + offsetY;
-
-    homeTx = tx;
-    homeTy = ty;
-}
-
-setInitialPosition();
-
-function applyTransform(){
-    // non si può scrollare oltre i bordi del foglio (6000x4000)
-    const worldW = 6000, worldH = 4000;
-    const margin = 400; // un po' di respiro oltre il contenuto
-
-    const minTx = window.innerWidth  - worldW*scale - margin;
-    const maxTx = margin;
-    const minTy = window.innerHeight - worldH*scale - margin;
-    const maxTy = margin;
-
-    tx = Math.max(minTx, Math.min(maxTx, tx));
-    ty = Math.max(minTy, Math.min(maxTy, ty));
-
-    world.style.transformOrigin = "0 0";
-    world.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-}
-applyTransform();
-
-/* ---- wheel / trackpad (pan in any direction, pinch/ctrl+wheel to zoom) ---- */
-
-function handleWheel(e, offsetX, offsetY){
-
-    const cx = e.clientX + offsetX;
-    const cy = e.clientY + offsetY;
-
-    if(e.ctrlKey || e.metaKey){
-        // zoom, centered on cursor position
-        const factor = Math.exp(-e.deltaY * 0.01);
-        const newScale = Math.max(minScale, Math.min(maxScale, scale*factor));
-
-        const worldX = (cx - tx) / scale;
-        const worldY = (cy - ty) / scale;
-
-        tx = cx - worldX*newScale;
-        ty = cy - worldY*newScale;
-        scale = newScale;
-
-    } else {
-        tx -= e.deltaX;
-        ty -= e.deltaY;
-    }
-
-    applyTransform();
-    requestUpdate();
-}
-
-viewport.addEventListener("wheel", e=>{
-    e.preventDefault();
-    handleWheel(e, 0, 0);
-}, { passive:false });
-
-/* ------------------------------ */
-/* FOCUS — distanza 2D dal centro schermo */
-/* ------------------------------ */
-
-function updateFragments(){
-
-    const fragments = Array.from(document.querySelectorAll(".fragment-text"));
-
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
-    const plateau = Math.min(window.innerWidth, window.innerHeight) * 0.18;
-    const fadeRange = Math.min(window.innerWidth, window.innerHeight) * 0.55;
-
-    fragments.forEach(block=>{
-
-        const rect = block.getBoundingClientRect();
-        const bx = rect.left + rect.width/2;
-        const by = rect.top + rect.height/2;
-
-        const dist = Math.hypot(bx-cx, by-cy);
-
-        let focus;
-        if(dist <= plateau){
-            focus = 1;
-        } else {
-            focus = Math.max(0, 1 - (dist-plateau)/fadeRange);
-        }
-        const scatter = 1 - focus;
-
-        block.querySelectorAll(".letter").forEach(span=>{
-            const dx = parseFloat(span.dataset.dx) * scatter;
-            const dy = parseFloat(span.dataset.dy) * scatter;
-            const rot = parseFloat(span.dataset.rot) * scatter;
-            const opacity = 0.12 + focus*0.88;
-
-            span.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
-            span.style.opacity = opacity;
-        });
-
-    });
-
-}
-
-let ticking = false;
-function requestUpdate(){
-    if(!ticking){
-        requestAnimationFrame(()=>{
-            updateFragments();
-            ticking = false;
-        });
-        ticking = true;
+function renderReadingSystem(block){
+    switch(block.dataset.style){
+        case "boxrows": wrapBoxRows(block); break;
+        case "outline": wrapOutline(block); break;
+        case "jitter":  wrapJitter(block);  break;
+        case "ghost":   wrapGhost(block);   break;
     }
 }
 
-window.addEventListener("resize", updateFragments);
-window.addEventListener("load", updateFragments);
-
-updateFragments();
+document.querySelectorAll(".tp-text").forEach(renderReadingSystem);
 
 /* ------------------------------ */
-/* CLICK LINKS — pan camera + draw arrow */
+/* PAGE SWITCHING — NEXT cycles through the 4 pages (looping from 04     */
+/* back to 01), the left-hand index jumps straight to one, and GO TO      */
+/* TOOL opens whichever tool the page currently on screen belongs to.     */
 /* ------------------------------ */
 
-const linkOverlay = document.getElementById("link-overlay");
-let activeLinks = []; // [{ sourceEl, targetEl, pathEl }]
-let panAnim = null;
+const pages       = Array.from(document.querySelectorAll(".tool-page"));
+const indexBtns   = Array.from(document.querySelectorAll(".index-num"));
+let currentPage   = 0;
 
-function easeInOutQuad(t){
-    return t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+function showPage(idx){
+    currentPage = ((idx % pages.length) + pages.length) % pages.length;
+    pages.forEach((p, i)=> p.classList.toggle("active", i === currentPage));
+    indexBtns.forEach((b, i)=> b.classList.toggle("active", i === currentPage));
 }
 
-function panToCoords(destTx, destTy){
-
-    const startTx = tx, startTy = ty;
-    const duration = 700;
-    const startTime = performance.now();
-
-    if(panAnim) cancelAnimationFrame(panAnim);
-
-    function step(now){
-        const t = Math.min(1, (now-startTime)/duration);
-        const e = easeInOutQuad(t);
-
-        tx = startTx + (destTx-startTx)*e;
-        ty = startTy + (destTy-startTy)*e;
-
-        applyTransform();
-        updateFragments();
-        updateAllLinkArrows();
-
-        if(t<1){
-            panAnim = requestAnimationFrame(step);
-        }
-    }
-    panAnim = requestAnimationFrame(step);
-
-}
-
-function panTo(targetEl){
-
-    const targetWorldX = parseFloat(targetEl.style.left);
-    const targetWorldY = parseFloat(targetEl.style.top);
-    const targetW = targetEl.offsetWidth;
-    const targetH = targetEl.offsetHeight;
-
-    const destTx = (window.innerWidth/2)  - (targetWorldX + targetW/2)*scale;
-    const destTy = (window.innerHeight/2) - (targetWorldY + targetH/2)*scale;
-
-    panToCoords(destTx, destTy);
-
-}
-
-function computeClampedPoints(sourceEl, targetEl){
-
-    const r1 = sourceEl.getBoundingClientRect();
-    const r2 = targetEl.getBoundingClientRect();
-
-    let x1 = r1.left + r1.width/2;
-    let y1 = r1.top  + r1.height/2;
-    let x2 = r2.left + r2.width/2;
-    let y2 = r2.top  + r2.height/2;
-
-    const pad = 24;
-    x1 = Math.max(pad, Math.min(window.innerWidth-pad, x1));
-    y1 = Math.max(pad, Math.min(window.innerHeight-pad, y1));
-    x2 = Math.max(pad, Math.min(window.innerWidth-pad, x2));
-    y2 = Math.max(pad, Math.min(window.innerHeight-pad, y2));
-
-    return { x1, y1, x2, y2 };
-
-}
-
-function updateAllLinkArrows(){
-
-    activeLinks.forEach(link=>{
-
-        const { x1, y1, x2, y2 } = computeClampedPoints(link.sourceEl, link.targetEl);
-        const mx = (x1+x2)/2, my = (y1+y2)/2 - 40;
-
-        link.pathEl.setAttribute("d", `M${x1},${y1} Q${mx},${my} ${x2},${y2}`);
-
-    });
-
-}
-
-function addLink(sourceEl, targetEl){
-
-    const pathEl = document.createElementNS("http://www.w3.org/2000/svg","path");
-    pathEl.setAttribute("marker-end","url(#arrowhead)");
-    linkOverlay.appendChild(pathEl);
-
-    activeLinks.push({ sourceEl, targetEl, pathEl });
-
-}
-
-document.querySelectorAll(".clickable").forEach(el=>{
-
-    el.addEventListener("click", (e)=>{
-
-        e.stopPropagation();
-
-        const targetEl = document.getElementById(el.dataset.link);
-        if(!targetEl) return;
-
-        addLink(el, targetEl);
-        panTo(targetEl);
-
-    });
-
+document.getElementById("btn-next").addEventListener("click", ()=>{
+    showPage(currentPage + 1);
 });
 
-/* ------------------------------ */
-/* SCRAMBLE ON HOVER — "read by the machine": the letter under the cursor
-   flickers into other characters while hovered, and freezes on whatever
-   character it lands on when the cursor moves away — the word
-   accumulating "misreadings" as you sweep across it */
-/* ------------------------------ */
-
-const SCRAMBLE_POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&@*+=-/?!";
-
-function wireScrambleLetter(span){
-
-    if(span.dataset.char === "\u00A0") return;
-
-    let scrambleId = null;
-
-    span.addEventListener("mouseenter", ()=>{
-        if(scrambleId) return;
-        span.textContent = SCRAMBLE_POOL[Math.floor(Math.random()*SCRAMBLE_POOL.length)];
-        scrambleId = setInterval(()=>{
-            span.textContent = SCRAMBLE_POOL[Math.floor(Math.random()*SCRAMBLE_POOL.length)];
-        }, 90);
-    });
-
-    span.addEventListener("mouseleave", ()=>{
-        clearInterval(scrambleId);
-        scrambleId = null;
-        // freeze: leave whatever character is currently showing
-    });
-
-}
-
-document.querySelectorAll(".clickable").forEach(el=>{
-    el.querySelectorAll(".letter").forEach(wireScrambleLetter);
+indexBtns.forEach(btn=>{
+    btn.addEventListener("click", ()=> showPage(parseInt(btn.dataset.idx, 10)));
 });
 
-/* ---- same effect on the READ ME / PUBLICATION titles ---- */
-
-function wireScrambleTitle(el){
-    const text = el.textContent;
-    el.textContent = "";
-
-    text.split("").forEach(ch=>{
-        const span = document.createElement("span");
-        const displayCh = ch === " " ? "\u00A0" : ch;
-        span.textContent = displayCh;
-        span.dataset.char = displayCh;
-        span.style.display = "inline-block";
-        el.appendChild(span);
-        wireScrambleLetter(span);
-    });
-}
-
-wireScrambleTitle(document.getElementById("publication-link"));
-
-window.addEventListener("wheel", ()=>{
-    if(activeLinks.length) requestAnimationFrame(updateAllLinkArrows);
-}, { passive:true });
-
-document.getElementById("recenter").addEventListener("click", ()=>{
-    scale = 1;
-    panToCoords(homeTx, homeTy);
-
-    // restore any frozen/scrambled letters back to their original text
-    document.querySelectorAll("[data-char]").forEach(span=>{
-        span.textContent = span.dataset.char;
-    });
+document.getElementById("btn-go-tool").addEventListener("click", ()=>{
+    const p = pages[currentPage];
+    openTool(p.dataset.toolSrc, p.dataset.toolName);
 });
-
-document.querySelectorAll(".index-num").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-        const target = document.getElementById(btn.dataset.target);
-        if(target) panTo(target);
-    });
-});
-
-/* ------------------------------ */
-/* USER NOTES — solo per la sessione corrente, nessuna persistenza */
-/* ------------------------------ */
-
-function renderNote(x, y, text){
-
-    const el = document.createElement("div");
-    el.className = "fragment user-note";
-    el.style.top  = y + "px";
-    el.style.left = x + "px";
-
-    const textEl = document.createElement("div");
-    textEl.className = "fragment-text small";
-    textEl.dataset.text = text;
-    el.appendChild(textEl);
-
-    world.appendChild(el);
-    wrapText(textEl);
-
-    // doppio click sulla nota = elimina
-    el.addEventListener("dblclick", (e)=>{
-        e.stopPropagation();
-        el.remove();
-    });
-
-}
-
-/* ---- creazione di una nuova nota: doppio click su spazio vuoto ---- */
-
-viewport.addEventListener("dblclick", (e)=>{
-
-    // ignora se il doppio click è su un frammento esistente
-    if(e.target.closest(".fragment")) return;
-
-    const worldX = e.clientX - tx;
-    const worldY = e.clientY - ty;
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "fragment user-note";
-    wrapper.style.top  = worldY + "px";
-    wrapper.style.left = worldX + "px";
-
-    const input = document.createElement("input");
-    input.className = "note-input";
-    input.type = "text";
-    input.placeholder = "write a note…";
-    wrapper.appendChild(input);
-
-    world.appendChild(wrapper);
-    input.focus();
-
-    function commit(){
-
-        const value = input.value.trim();
-        wrapper.remove();
-
-        if(!value) return;
-
-        renderNote(worldX, worldY, value);
-        updateFragments();
-
-    }
-
-    input.addEventListener("keydown", ev=>{
-        if(ev.key === "Enter") commit();
-        if(ev.key === "Escape"){ wrapper.remove(); }
-    });
-    input.addEventListener("blur", commit);
-
-});
-
-
-
 
 /* ------------------------------ */
 /* TOOL OVERLAY */
@@ -1372,14 +842,6 @@ window.addEventListener("focus", ()=>{
     if(antiTypeFrame.classList.contains("show")) clearAntiTypeUpdateFlag();
 });
 
-// opened from a fragment on the canvas
-document.querySelectorAll(".open-tool").forEach(btn=>{
-    btn.addEventListener("click", e=>{
-        e.stopPropagation();
-        openTool(btn.dataset.toolSrc, btn.dataset.toolName);
-    });
-});
-
 // switched from the sidebar, without leaving the overlay
 toolLinks.forEach(btn=>{
     btn.addEventListener("click", ()=>{
@@ -1393,22 +855,6 @@ document.getElementById("tool-overlay-close").addEventListener("click", ()=>{
     toolOverlayFrame.dataset.currentSrc = "";
     toolLinks.forEach(link=> link.classList.remove("active"));
 });
-
-/* ------------------------------ */
-/* HINT — shows every time you arrive here from index.html               */
-/* ------------------------------ */
-
-(function(){
-    const hint = document.getElementById("hint");
-    // Referrer isn't reliable for local file:// testing (browsers strip it),
-    // so index.html tags its link/redirect with ?from=index instead.
-    const cameFromIndex = new URLSearchParams(location.search).get("from") === "index";
-
-    if(cameFromIndex){
-        requestAnimationFrame(()=> hint.classList.add("show"));
-        setTimeout(()=> hint.classList.remove("show"), 3000);
-    }
-})();
 
 </script>
 </body>
