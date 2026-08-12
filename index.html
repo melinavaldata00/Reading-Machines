@@ -6,27 +6,6 @@
   <title>Reading Machines</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    .readme-link{
-      position:fixed;
-      top:18px;
-      left:50%;
-      transform:translateX(-50%);
-      font-size:13px;
-      letter-spacing:.2em;
-      color:#1f130d;
-      opacity:1;
-      text-decoration:none;
-      z-index:100;
-      font-family:"ABC Gaisyr", monospace;
-      padding:7px 18px;
-      border:1px solid #1f130d;
-      border-radius:20px;
-      transition:background .2s, color .2s;
-    }
-    .readme-link:hover{
-      background:#2bff00;
-      color:#1f130d;
-    }
     .docs-link{
       position:fixed;
       bottom:20px;
@@ -84,12 +63,6 @@
       color:var(--tp-text,#3fff00); z-index:250; text-decoration:none; opacity:.85; transition:opacity .2s;
     }
     #publication-link:hover{ opacity:.55; }
-    #back-to-start{
-      position:fixed; top:18px; left:24px; z-index:250; text-decoration:none;
-      color:var(--tp-text,#3fff00); opacity:0; pointer-events:none; transition:opacity .3s; font-size:13px;
-    }
-    body.in-presenter #back-to-start{ opacity:.7; pointer-events:auto; }
-    #back-to-start:hover{ opacity:1; }
     #go-to-docs{
       position:fixed; right:22px; bottom:66px; z-index:250; text-decoration:none;
       color:var(--tp-text,#3fff00); opacity:0; pointer-events:none; transition:opacity .3s; font-size:13px;
@@ -266,7 +239,6 @@
 
   </main>
 
-  <a href="tool-space.html?from=index" id="enter-link" class="readme-link">ENTER</a>
   <a href="https://melinavaldata00.github.io/RMDocumentation/" class="docs-link" target="_blank" rel="noopener">DOCUMENTATION</a>
 
   <script src="script.js"></script>
@@ -286,7 +258,6 @@
     <iframe id="tool-overlay-iframe" src="" title="tool"></iframe>
   </div>
 
-  <a href="#top" id="back-to-start">← back to start</a>
   <a href="tools/publication.html" id="publication-link">PUBLICATION</a>
   <a href="https://melinavaldata00.github.io/RMDocumentation/" id="go-to-docs" target="_blank" rel="noopener">documentation →</a>
 
@@ -759,10 +730,10 @@
   }, { threshold: [0.5] });
   pages.forEach(p=> pageObserver.observe(p));
 
-  // fixed presenter chrome (index-bar, next, go-to-tool, back-to-start)
-  // stays hidden while on the landing, fades in once the presenter
-  // section is actually reachable on screen -- also used by style.css to
-  // fade out the landing's own STATE/column-toggle chrome in reverse.
+  // fixed presenter chrome (index-bar, next, go-to-tool) stays hidden
+  // while on the landing, fades in once the presenter section is
+  // actually reachable on screen -- also used by style.css to fade out
+  // the landing's own STATE/column-toggle chrome in reverse.
   const presenterSentinel = document.getElementById("presenter-sentinel");
   const presenterObserver = new IntersectionObserver((entries)=>{
       entries.forEach(entry=>{
@@ -817,11 +788,6 @@
   document.getElementById("btn-go-tool").addEventListener("click", ()=>{
       const p = pages[currentPage];
       openTool(p.dataset.toolSrc, p.dataset.toolName);
-  });
-
-  document.getElementById("back-to-start").addEventListener("click", (e)=>{
-      e.preventDefault();
-      window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
   /* ------------------------------ */

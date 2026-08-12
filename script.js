@@ -249,14 +249,6 @@ document.querySelectorAll(".panel").forEach(panel=>{
     });
 });
 
-document.getElementById("enter-link") && document.getElementById("enter-link").addEventListener("click", (e)=>{
-    const presenter = document.getElementById("presenter");
-    if(presenter){
-        e.preventDefault();
-        presenter.scrollIntoView({ behavior: "smooth" });
-    }
-});
-
 /* ------------------------------ */
 /* DISPERSION — same focus/scatter idea as tool-space: lines near the    */
 /* vertical center of the screen read clean and in place; the further a   */
