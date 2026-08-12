@@ -148,10 +148,12 @@
     @keyframes boxFloatDown{ from{ transform:translateY(calc(-1 * var(--famp))); } to{ transform:translateY(var(--famp)); } }
     @keyframes boxFloatUp{ from{ transform:translateY(var(--famp)); } to{ transform:translateY(calc(-1 * var(--famp))); } }
 
-    /* ---- 02 Blind Contour — each word scribbled over with a dense, wobbly  */
-    /* hand-drawn mark (the same rapid, imprecise, eyes-off-the-page line     */
-    /* work as an actual blind contour drawing), reveal on hover, drop back  */
-    /* down and cover the word again a few seconds later. ---- */
+    /* ---- 02 Blind Contour — each word covered by a grid of digital static */
+    /* ("discards the rest as noise", straight from the tool's own text),   */
+    /* not a hand-drawn mark -- fits the site's monospace/grid aesthetic     */
+    /* better than an organic scribble. Hovering dissolves the noise block   */
+    /* by block to reveal the word; a few seconds later it reassembles and   */
+    /* covers it again. ---- */
     .tool-page.tp-bc-exaggerate{ padding:0; overflow:hidden; }
     .tp-bc-exaggerate .tp-head{ position:absolute; top:40px; left:24px; z-index:2; margin:0; }
     .tp-bc-exaggerate .tp-title{
@@ -167,15 +169,17 @@
       display:inline-block; font-family:"ABC Favorit", monospace; font-size:clamp(38px, 6.6vw, 92px);
       line-height:1.15; color:var(--tp-text); white-space:nowrap;
     }
-    .bc-scribble{
-      position:absolute; inset:-16% -8%; overflow:visible;
-      transform:rotate(var(--btilt, 0deg)) translateY(0); transform-origin:center;
-      opacity:1; pointer-events:none; transition:transform .4s cubic-bezier(.65,0,.35,1), opacity .3s ease .1s;
+    .bc-noise{
+      position:absolute; inset:-6% -3%;
+      display:grid; grid-template-columns:repeat(12, 1fr); grid-template-rows:repeat(5, 1fr);
+      gap:1px; pointer-events:none;
     }
-    .bc-scribble path{
-      fill:none; stroke:var(--tp-text); stroke-width:3px; stroke-linecap:round; stroke-linejoin:round; opacity:.92;
+    .bc-noise i{
+      display:block; font-style:normal; background:var(--tp-text);
+      opacity:var(--op, .8);
+      transition:opacity .3s ease var(--nd, 0s);
     }
-    .bc-word.revealed .bc-scribble{ transform:rotate(var(--btilt, 0deg)) translateY(-120%); opacity:0; }
+    .bc-word.revealed .bc-noise i{ opacity:0; transition-delay:var(--nd2, 0s); }
 
     /* ---- 03 Anti Type ---- */
     .tp-float.tp-anti-write .tp-text{ position:static; inset:auto; }
@@ -426,41 +430,21 @@
       if(boxes.length) revealBox(0);
   }
 
-  // 02 Blind Contour — each word gets scribbled over with a dense, wobbly
-  // hand-drawn mark instead of a clean geometric shape: several loose,
-  // overshooting zigzag passes back and forth across the word, the same
-  // rapid, imprecise, not-quite-in-control line you get doing an actual
-  // blind contour drawing (eyes on the subject, not the page). Hovering
-  // lifts the scribble away and reveals the word underneath; a few
+  // 02 Blind Contour — each word covered by a grid of digital static, a
+  // literal read of the tool's own line "discards the rest as noise":
+  // small blocks at random opacity, in the site's own monospace/grid
+  // language rather than an organic hand-drawn mark. Hovering dissolves
+  // the blocks (each with its own tiny random delay, so it reads as
+  // noise clearing rather than a uniform wipe) to reveal the word; a few
   // seconds later — automatically, regardless of whether the mouse is
-  // still there — it drops back down and covers the word again.
-  function scribblePath(seed){
-      const passes = 4 + Math.floor(tpSeededRandom(seed) * 3); // 4–6 passes
-      let d = "";
-      let dir = 1;
-      for(let p = 0; p < passes; p++){
-          const y = (passes === 1 ? 50 : (p / (passes - 1)) * 78 + 11)
-                    + (tpSeededRandom(seed + p*0.31 + 1) - 0.5) * 8;
-          const x1 = dir === 1 ? -8 - tpSeededRandom(seed + p*0.11) * 5
-                                : 108 + tpSeededRandom(seed + p*0.11) * 5;
-          const x2 = dir === 1 ? 108 + tpSeededRandom(seed + p*0.17) * 5
-                                : -8 - tpSeededRandom(seed + p*0.17) * 5;
-          const mx = (x1 + x2) / 2 + (tpSeededRandom(seed + p*0.23) - 0.5) * 24;
-          const my = y + (tpSeededRandom(seed + p*0.29) - 0.5) * 14;
-
-          d += (p === 0 ? "M " : "L ") + x1.toFixed(1) + " " + y.toFixed(1) + " ";
-          d += "Q " + mx.toFixed(1) + " " + my.toFixed(1) + " " + x2.toFixed(1) + " " + y.toFixed(1) + " ";
-          dir *= -1;
-      }
-      return d;
-  }
+  // still there — the static reassembles and covers it again.
+  const BC_COLS = 12, BC_ROWS = 5;
 
   function wrapAbstractWords(block){
       const text = block.dataset.text.replace(/\s+/g, ' ').trim();
       const blockIdx = wrapCounter++;
       const words = text.split(' ');
       const REVEAL_MS = 2500;
-      const SVG_NS = "http://www.w3.org/2000/svg";
 
       words.forEach((word, wi)=>{
           const wrap = document.createElement("span");
@@ -471,22 +455,24 @@
           label.className = "bc-label";
           label.textContent = word;
 
-          const seed = blockIdx*1000 + wi;
-          const tilt = (tpSeededRandom(seed + 0.6) - 0.5) * 3.6;
+          const noise = document.createElement("span");
+          noise.className = "bc-noise";
+          const wordSeed = blockIdx*1000 + wi;
 
-          const svg = document.createElementNS(SVG_NS, "svg");
-          svg.setAttribute("class", "bc-scribble");
-          svg.setAttribute("viewBox", "0 0 100 100");
-          svg.setAttribute("preserveAspectRatio", "none");
-          svg.style.setProperty("--btilt", tilt.toFixed(2) + "deg");
-
-          const path = document.createElementNS(SVG_NS, "path");
-          path.setAttribute("d", scribblePath(seed));
-          path.setAttribute("vector-effect", "non-scaling-stroke");
-          svg.appendChild(path);
+          for(let c = 0; c < BC_COLS * BC_ROWS; c++){
+              const cell = document.createElement("i");
+              const seed = wordSeed*100 + c;
+              const op = 0.35 + tpSeededRandom(seed + 0.2) * 0.6;
+              const nd  = tpSeededRandom(seed + 0.4) * 0.22;   // stagger going away
+              const nd2 = tpSeededRandom(seed + 0.6) * 0.22;   // stagger coming back
+              cell.style.setProperty("--op", op.toFixed(2));
+              cell.style.setProperty("--nd", nd.toFixed(2) + "s");
+              cell.style.setProperty("--nd2", nd2.toFixed(2) + "s");
+              noise.appendChild(cell);
+          }
 
           wrap.appendChild(label);
-          wrap.appendChild(svg);
+          wrap.appendChild(noise);
 
           let revealTimer = null;
           wrap.addEventListener("mouseenter", ()=>{
