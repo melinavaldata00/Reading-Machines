@@ -148,7 +148,10 @@
     @keyframes boxFloatDown{ from{ transform:translateY(calc(-1 * var(--famp))); } to{ transform:translateY(var(--famp)); } }
     @keyframes boxFloatUp{ from{ transform:translateY(var(--famp)); } to{ transform:translateY(calc(-1 * var(--famp))); } }
 
-    /* ---- 02 Blind Contour — redaction bars, reveal on hover, drop back ---- */
+    /* ---- 02 Blind Contour — each word scribbled over with a dense, wobbly  */
+    /* hand-drawn mark (the same rapid, imprecise, eyes-off-the-page line     */
+    /* work as an actual blind contour drawing), reveal on hover, drop back  */
+    /* down and cover the word again a few seconds later. ---- */
     .tool-page.tp-bc-exaggerate{ padding:0; overflow:hidden; }
     .tp-bc-exaggerate .tp-head{ position:absolute; top:40px; left:24px; z-index:2; margin:0; }
     .tp-bc-exaggerate .tp-title{
@@ -164,12 +167,15 @@
       display:inline-block; font-family:"ABC Favorit", monospace; font-size:clamp(38px, 6.6vw, 92px);
       line-height:1.15; color:var(--tp-text); white-space:nowrap;
     }
-    .bc-bar{
-      position:absolute; inset:-8% -5%; background:var(--tp-text); border-radius:1px;
-      transform:rotate(var(--btilt, 0deg)) translateY(0) scaleY(1); transform-origin:center;
+    .bc-scribble{
+      position:absolute; inset:-16% -8%; overflow:visible;
+      transform:rotate(var(--btilt, 0deg)) translateY(0); transform-origin:center;
       opacity:1; pointer-events:none; transition:transform .4s cubic-bezier(.65,0,.35,1), opacity .3s ease .1s;
     }
-    .bc-word.revealed .bc-bar{ transform:rotate(var(--btilt, 0deg)) translateY(-140%) scaleY(.85); opacity:0; }
+    .bc-scribble path{
+      fill:none; stroke:var(--tp-text); stroke-width:3px; stroke-linecap:round; stroke-linejoin:round; opacity:.92;
+    }
+    .bc-word.revealed .bc-scribble{ transform:rotate(var(--btilt, 0deg)) translateY(-120%); opacity:0; }
 
     /* ---- 03 Anti Type ---- */
     .tp-float.tp-anti-write .tp-text{ position:static; inset:auto; }
@@ -420,16 +426,41 @@
       if(boxes.length) revealBox(0);
   }
 
-  // 02 Blind Contour — each word sits under a solid redaction bar, the same
-  // colour as the text, stamped on at a small seeded tilt so the row doesn't
-  // look machine-uniform. Hovering lifts the bar away and reveals the word;
-  // a few seconds later — automatically, regardless of whether the mouse is
+  // 02 Blind Contour — each word gets scribbled over with a dense, wobbly
+  // hand-drawn mark instead of a clean geometric shape: several loose,
+  // overshooting zigzag passes back and forth across the word, the same
+  // rapid, imprecise, not-quite-in-control line you get doing an actual
+  // blind contour drawing (eyes on the subject, not the page). Hovering
+  // lifts the scribble away and reveals the word underneath; a few
+  // seconds later — automatically, regardless of whether the mouse is
   // still there — it drops back down and covers the word again.
+  function scribblePath(seed){
+      const passes = 4 + Math.floor(tpSeededRandom(seed) * 3); // 4–6 passes
+      let d = "";
+      let dir = 1;
+      for(let p = 0; p < passes; p++){
+          const y = (passes === 1 ? 50 : (p / (passes - 1)) * 78 + 11)
+                    + (tpSeededRandom(seed + p*0.31 + 1) - 0.5) * 8;
+          const x1 = dir === 1 ? -8 - tpSeededRandom(seed + p*0.11) * 5
+                                : 108 + tpSeededRandom(seed + p*0.11) * 5;
+          const x2 = dir === 1 ? 108 + tpSeededRandom(seed + p*0.17) * 5
+                                : -8 - tpSeededRandom(seed + p*0.17) * 5;
+          const mx = (x1 + x2) / 2 + (tpSeededRandom(seed + p*0.23) - 0.5) * 24;
+          const my = y + (tpSeededRandom(seed + p*0.29) - 0.5) * 14;
+
+          d += (p === 0 ? "M " : "L ") + x1.toFixed(1) + " " + y.toFixed(1) + " ";
+          d += "Q " + mx.toFixed(1) + " " + my.toFixed(1) + " " + x2.toFixed(1) + " " + y.toFixed(1) + " ";
+          dir *= -1;
+      }
+      return d;
+  }
+
   function wrapAbstractWords(block){
       const text = block.dataset.text.replace(/\s+/g, ' ').trim();
       const blockIdx = wrapCounter++;
       const words = text.split(' ');
       const REVEAL_MS = 2500;
+      const SVG_NS = "http://www.w3.org/2000/svg";
 
       words.forEach((word, wi)=>{
           const wrap = document.createElement("span");
@@ -440,14 +471,22 @@
           label.className = "bc-label";
           label.textContent = word;
 
-          const bar = document.createElement("span");
-          bar.className = "bc-bar";
           const seed = blockIdx*1000 + wi;
           const tilt = (tpSeededRandom(seed + 0.6) - 0.5) * 3.6;
-          bar.style.setProperty("--btilt", tilt.toFixed(2) + "deg");
+
+          const svg = document.createElementNS(SVG_NS, "svg");
+          svg.setAttribute("class", "bc-scribble");
+          svg.setAttribute("viewBox", "0 0 100 100");
+          svg.setAttribute("preserveAspectRatio", "none");
+          svg.style.setProperty("--btilt", tilt.toFixed(2) + "deg");
+
+          const path = document.createElementNS(SVG_NS, "path");
+          path.setAttribute("d", scribblePath(seed));
+          path.setAttribute("vector-effect", "non-scaling-stroke");
+          svg.appendChild(path);
 
           wrap.appendChild(label);
-          wrap.appendChild(bar);
+          wrap.appendChild(svg);
 
           let revealTimer = null;
           wrap.addEventListener("mouseenter", ()=>{
