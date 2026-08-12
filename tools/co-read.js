@@ -1299,8 +1299,11 @@ function drawGrid(st) {
     svgDoc.appendChild(line);
   });
 }
-document.getElementById('btn-guide').addEventListener('click', () => {
-  document.getElementById('guide-overlay').classList.add('show');
+window.addEventListener('message', (e) => {
+  if (e.origin !== location.origin) return;
+  if (e.data && e.data.type === 'open-guide') {
+    document.getElementById('guide-overlay').classList.add('show');
+  }
 });
 document.getElementById('btn-guide-close').addEventListener('click', () => {
   document.getElementById('guide-overlay').classList.remove('show');

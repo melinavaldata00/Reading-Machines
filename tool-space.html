@@ -284,6 +284,31 @@ html,body{
   border-color:#2bff00;
 }
 
+#tool-guide-btn{
+  background:none;
+  border:1px solid var(--text-dim);
+  border-radius:14px;
+  color:var(--text);
+  font-family:inherit;
+  font-size:11px;
+  letter-spacing:.08em;
+  cursor:pointer;
+  padding:6px 10px;
+  opacity:.7;
+  transition:opacity .2s, background .2s, color .2s, border-color .2s;
+  align-self:flex-start;
+}
+#tool-guide-btn:hover{
+  opacity:1;
+  background:#2bff00;
+  color:#1f130d;
+  border-color:#2bff00;
+}
+#tool-guide-btn:disabled{
+  opacity:.3;
+  pointer-events:none;
+}
+
 /* ---- right column: the open tool, about two thirds of the screen ---- */
 
 #tool-main{
@@ -542,6 +567,7 @@ html,body{
       <button class="tool-link" data-tool-src="tools/co-read.html" data-tool-name="Reading Loop"><span class="tool-num">04</span><span class="tool-label">— Reading in loop</span></button>
     </nav>
     <div id="tool-sidebar-hint">click a tool to switch — the current one keeps loading on the right</div>
+    <button id="tool-guide-btn" disabled>how does it work?</button>
     <button id="tool-overlay-close">← back to space</button>
   </div>
   <div id="tool-main">
@@ -1234,11 +1260,21 @@ function openTool(src, name){
 
     toolOverlayTitle.textContent = name;
     toolOverlay.classList.add("show");
+    document.getElementById("tool-guide-btn").disabled = false;
 
     toolLinks.forEach(link=>{
         link.classList.toggle("active", link.dataset.toolSrc === src);
     });
 }
+
+// single sidebar entry point for every tool's own "how it works" guide —
+// each tool page still owns its guide content/modal, this just asks the
+// currently-visible iframe to open it
+document.getElementById("tool-guide-btn").addEventListener("click", ()=>{
+    const activeFrame = antiTypeFrame.classList.contains("show") ? antiTypeFrame : toolOverlayFrame;
+    if(!activeFrame.contentWindow) return;
+    activeFrame.contentWindow.postMessage({ type: "open-guide" }, location.origin);
+});
 
 /* Anti Type runs in the background (see above) and reports back here      */
 /* when a word or font export finishes, via postMessage from its iframe.   */

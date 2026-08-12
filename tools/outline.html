@@ -173,7 +173,6 @@ body.stage-results #export-row{ display: flex; opacity: 1; }
   <span id="title"><b>CV OUTLINE</b> — <span id="fname">no file</span></span>
   <button class="b" id="btn-import">import</button>
   <button class="b go" id="btn-run" disabled>run</button>
-  <button class="b" id="btn-guide" style="margin-left:auto">how it works</button>
   <input type="file" accept="image/*" id="file-input" style="display:none">
 </div>
 
@@ -529,8 +528,11 @@ function prog(show, txt) {
   if (txt) document.getElementById('ptxt').textContent = txt;
 }
 
-document.getElementById('btn-guide').addEventListener('click', () => {
-  document.getElementById('guide-overlay').classList.add('show');
+window.addEventListener('message', (e) => {
+  if (e.origin !== location.origin) return;
+  if (e.data && e.data.type === 'open-guide') {
+    document.getElementById('guide-overlay').classList.add('show');
+  }
 });
 document.getElementById('btn-guide-close').addEventListener('click', () => {
   document.getElementById('guide-overlay').classList.remove('show');
