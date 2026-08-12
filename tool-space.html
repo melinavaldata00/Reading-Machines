@@ -308,6 +308,24 @@ html,body{
   height:calc(100% - 34px);
 }
 
+/* Anti Type gets its own dedicated iframe that is never unloaded once     */
+/* opened: font-loop requests can take a while, so switching to another    */
+/* tool must not kill an in-progress run. It's just hidden (not removed)   */
+/* while a different tool is shown, and keeps running underneath.          */
+#anti-type-iframe{
+  position:absolute;
+  top:34px;
+  left:0;
+  right:0;
+  bottom:0;
+  border:none;
+  width:100%;
+  height:calc(100% - 34px);
+  display:none;
+}
+#anti-type-iframe.show{ display:block; }
+#anti-type-iframe.show ~ #tool-overlay-iframe{ display:none; }
+
 .index-num{
   background:none;
   border:none;
@@ -515,6 +533,7 @@ html,body{
   </div>
   <div id="tool-main">
     <div id="tool-overlay-title">—</div>
+    <iframe id="anti-type-iframe" src="" title="Anti Type"></iframe>
     <iframe id="tool-overlay-iframe" src="" title="tool"></iframe>
   </div>
 </div>
@@ -1171,15 +1190,29 @@ viewport.addEventListener("dblclick", (e)=>{
 
 const toolOverlay      = document.getElementById("tool-overlay");
 const toolOverlayFrame = document.getElementById("tool-overlay-iframe");
+const antiTypeFrame    = document.getElementById("anti-type-iframe");
 const toolOverlayTitle = document.getElementById("tool-overlay-title");
 const toolLinks        = document.querySelectorAll(".tool-link");
+const ANTI_TYPE_SRC    = "tools/anti-ocr.html";
 
 function openTool(src, name){
-    // avoid reloading the iframe if this tool is already the one showing
-    if(toolOverlayFrame.dataset.currentSrc !== src){
-        toolOverlayFrame.src = src;
-        toolOverlayFrame.dataset.currentSrc = src;
+    if(src === ANTI_TYPE_SRC){
+        // load it once, then just reveal it — never reload while switching
+        // tools, so an in-progress run keeps going in the background
+        if(!antiTypeFrame.dataset.loaded){
+            antiTypeFrame.src = src;
+            antiTypeFrame.dataset.loaded = "1";
+        }
+        antiTypeFrame.classList.add("show");
+    } else {
+        antiTypeFrame.classList.remove("show");
+        // avoid reloading the iframe if this tool is already the one showing
+        if(toolOverlayFrame.dataset.currentSrc !== src){
+            toolOverlayFrame.src = src;
+            toolOverlayFrame.dataset.currentSrc = src;
+        }
     }
+
     toolOverlayTitle.textContent = name;
     toolOverlay.classList.add("show");
 

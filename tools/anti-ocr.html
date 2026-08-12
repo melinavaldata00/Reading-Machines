@@ -210,6 +210,7 @@ input[type=range]::-moz-range-thumb {
 }
 #prog-txt { font-size: 10px; color: var(--text-dim); letter-spacing: .04em; }
 #prog-hint { font-size: 14px; font-weight: 700; color: #2bcc6a; letter-spacing: .03em; margin-top: 6px; }
+#prog-nav-hint { font-size: 10px; color: var(--text-dim); letter-spacing: .03em; margin-top: 4px; }
 
 #export-right {
   position: absolute;
@@ -296,6 +297,7 @@ body.stage-results #iter-section{ display: block; }
 }
 #font-building-letter { font-size: 9px; letter-spacing: .1em; color: rgba(57, 255, 138, .55); margin-top: 10px; }
 #font-building-hint { font-size: 10px; letter-spacing: .03em; color: #39ff8a; margin-top: 14px; }
+#font-building-nav-hint { font-size: 9px; letter-spacing: .03em; color: rgba(57, 255, 138, .6); margin-top: 8px; }
 #font-building-bar { width: 180px; height: 1px; background: rgba(57, 255, 138, .25); margin: 12px auto 0; position: relative; }
 #font-building-fill { position: absolute; left:0; top:0; height:100%; background: #39ff8a; transition: width .3s ease; }
 @keyframes fontpulse { 0%,100%{opacity:1} 50%{opacity:.35} }
@@ -317,6 +319,7 @@ body.stage-results #iter-section{ display: block; }
     <div id="font-building-letter"></div>
     <div id="font-building-bar"><div id="font-building-fill" style="width:0%"></div></div>
     <div id="font-building-hint">please be patient, it takes a few seconds per letter</div>
+    <div id="font-building-nav-hint">feel free to browse other tools — you'll get a notification when this is ready</div>
   </div>
 </div>
 <div id="canvas-wrap">
@@ -378,6 +381,7 @@ body.stage-results #iter-section{ display: block; }
       <div id="prog-bar"><div id="prog-fill" style="width:0%"></div></div>
       <div id="prog-txt">—</div>
       <div id="prog-hint">please be patient, it takes a few seconds per letter</div>
+      <div id="prog-nav-hint">feel free to browse other tools — you'll get a notification when this is ready</div>
     </div>
   </div>
 
@@ -492,6 +496,19 @@ function glyphCacheKey(letter, maxIter, thresh, freqInt, glyphDim, font, style) 
   return [letter, maxIter, thresh, freqInt, glyphDim, font, style].join('|');
 }
 
+// ── completion notifications ────────────────────────────────
+// each run can take a while on the free hosting tier — this lets people
+// switch to another tool while it works and still get told when it's done.
+function requestNotifyPermission() {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission === 'default') Notification.requestPermission();
+}
+function notifyReady(title, body) {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission !== 'granted') return;
+  try { new Notification(title, { body }); } catch (e) {}
+}
+
 function prog(show, pct, txt) {
   document.getElementById('prog').classList.toggle('show', show);
   if (pct !== undefined) document.getElementById('prog-fill').style.width = Math.round(pct * 100) + '%';
@@ -522,6 +539,7 @@ async function runWithConcurrency(items, limit, worker) {
 document.getElementById('btn-run').addEventListener('click', async () => {
   const word = document.getElementById('word-input').value.trim();
   if (!word) return;
+  requestNotifyPermission();
 
   const maxIter  = parseInt(document.getElementById('sl-iter').value);
   const thresh   = parseInt(document.getElementById('sl-thresh').value);
@@ -586,6 +604,7 @@ document.getElementById('btn-run').addEventListener('click', async () => {
   prog(false);
   document.getElementById('btn-run').disabled = false;
   renderWord();
+  notifyReady('Anti Type — ready', '"' + currentWord + '" has finished processing.');
 });
 
 function updateIterStrip(letter, glyph) {
@@ -787,6 +806,7 @@ function showFontBuilding(show, pct, letter) {
 }
 
 document.getElementById('btn-otf').addEventListener('click', async () => {
+  requestNotifyPermission();
   const ALPHABET = 'abcdefghijklmnopqrstuvwxyz'.split('');
   const maxIter  = parseInt(document.getElementById('sl-iter').value);
   const thresh   = parseInt(document.getElementById('sl-thresh').value);
@@ -871,8 +891,10 @@ document.getElementById('btn-otf').addEventListener('click', async () => {
       glyphs: glyphList,
     });
     font.download('anti-ocr.otf');
+    notifyReady('Anti Type — font ready', 'Your OTF export has finished and downloaded.');
   } catch(e) {
     alert('Font generation failed: ' + e.message);
+    notifyReady('Anti Type — font export failed', e.message);
   }
 
   showFontBuilding(false);
