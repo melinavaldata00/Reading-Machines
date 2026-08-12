@@ -29,24 +29,29 @@
     }
     .docs-link{
       position:fixed;
-      bottom:18px;
-      left:50%;
-      transform:translateX(-50%);
-      font-size:13px;
-      letter-spacing:.2em;
+      bottom:20px;
+      right:20px;
+      font-size:12px;
+      letter-spacing:.04em;
+      text-transform:uppercase;
       color:#1f130d;
       opacity:1;
       text-decoration:none;
-      z-index:100;
-      font-family:"ABC Gaisyr", monospace;
-      padding:7px 18px;
+      z-index:90;
+      font-family:"ABC Favorit", monospace;
+      padding:9px 16px;
       border:1px solid #1f130d;
-      border-radius:20px;
-      transition:background .2s, color .2s;
+      border-radius:999px;
+      background:#ffffff;
+      transition:background .15s ease, color .15s ease;
     }
     .docs-link:hover{
       background:#2bff00;
       color:#1f130d;
+      border-color:#1f130d;
+    }
+    @media(max-width:480px){
+      .docs-link{ bottom:14px; right:14px; padding:8px 13px; font-size:11px; }
     }
   </style>
 </head>
