@@ -22,12 +22,19 @@
       border:1px solid #1f130d;
       border-radius:999px;
       background:#ffffff;
-      transition:background .15s ease, color .15s ease;
+      transition:background .15s ease, color .15s ease, opacity .3s ease;
     }
     .docs-link:hover{
       background:#2bff00;
       color:#1f130d;
       border-color:#1f130d;
+    }
+    /* documentation is only relevant on the landing -- fades out once  */
+    /* you've scrolled down into the tool pages, same gating mechanism  */
+    /* used for the presenter's own fixed chrome, just inverted.        */
+    body.in-presenter .docs-link{
+      opacity:0;
+      pointer-events:none;
     }
     @media(max-width:480px){
       .docs-link{ bottom:14px; right:14px; padding:8px 13px; font-size:11px; }
@@ -63,12 +70,6 @@
       color:var(--tp-text,#3fff00); z-index:250; text-decoration:none; opacity:.85; transition:opacity .2s;
     }
     #publication-link:hover{ opacity:.55; }
-    #go-to-docs{
-      position:fixed; right:22px; bottom:66px; z-index:250; text-decoration:none;
-      color:var(--tp-text,#3fff00); opacity:0; pointer-events:none; transition:opacity .3s; font-size:13px;
-    }
-    body.in-presenter #go-to-docs{ opacity:.7; pointer-events:auto; }
-    #go-to-docs:hover{ opacity:1; }
     #index-bar{
       position:fixed; left:24px; top:50%; transform:translateY(-50%);
       display:flex; flex-direction:column; gap:22px; z-index:250;
@@ -259,7 +260,6 @@
   </div>
 
   <a href="tools/publication.html" id="publication-link">PUBLICATION</a>
-  <a href="https://melinavaldata00.github.io/RMDocumentation/" id="go-to-docs" target="_blank" rel="noopener">documentation →</a>
 
   <div id="index-bar">
     <button class="index-num active" data-idx="0">01</button>
