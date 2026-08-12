@@ -155,11 +155,15 @@ html,body{
   color:var(--bg);
 }
 
+/* Opening a tool is just a layer on top of whichever presentation page    */
+/* you're on — full-bleed iframe, a small close control and the guide      */
+/* trigger floating over it. No sidebar, no list of the other tools: each  */
+/* presentation page already owns its own GO TO TOOL button, so there's    */
+/* no need to reference the other three from inside the layer itself.      */
 #tool-overlay{
-  /* scoped white/brown override — the whole tool overlay (sidebar and     */
-  /* the tool itself) reads white/brown while a tool is open; the canvas   */
-  /* outside stays on the dark palette, since these vars only cascade to   */
-  /* #tool-overlay's own descendants.                                      */
+  /* scoped white/brown override — the layer reads white/brown while a     */
+  /* tool is open; the canvas outside stays on the dark palette, since      */
+  /* these vars only cascade to #tool-overlay's own descendants.            */
   --bg:#ffffff;
   --text:#1f130d;
   --text-dim: rgba(31,19,13,.45);
@@ -169,106 +173,61 @@ html,body{
   inset:0;
   z-index:200;
   display:none;
-  flex-direction:row;
   background:var(--bg);
   color:var(--text);
 }
 
 #tool-overlay.show{
+  display:block;
+}
+
+/* thin floating strip: current tool's name, its guide trigger, and the   */
+/* close control — the only chrome on top of the tool itself.              */
+#tool-overlay-bar{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  height:34px;
   display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:0 14px;
+  z-index:5;
+  pointer-events:none;
+}
+#tool-overlay-bar > *{
+  pointer-events:auto;
 }
 
-/* ---- left column: site nav + list of tools — sized to roughly       */
-/* match the reference layout (softer-tools.space), about a third of    */
-/* the screen, so the open tool reads as a page inside a proper           */
-/* editorial frame instead of bleeding edge-to-edge across the whole      */
-/* window.                                                                 */
-
-#tool-sidebar{
-  width:33%;
-  min-width:300px;
-  max-width:440px;
-  flex-shrink:0;
-  display:flex;
-  flex-direction:column;
-  border-right:1px solid var(--text-dim);
-  padding:22px 22px 18px;
-  gap:26px;
-  overflow-y:auto;
-}
-
-#tool-sidebar-title{
-  font-size:13px;
-  letter-spacing:.2em;
-  font-family:"ABC Gaisyr", monospace;
-}
-
-#tool-sidebar-hint{
+#tool-overlay-title{
   font-size:10px;
-  letter-spacing:.05em;
+  letter-spacing:.04em;
   color:var(--text-dim);
-  line-height:1.7;
 }
 
-#tool-list{
-  display:flex;
-  flex-direction:column;
-  flex:1;
-}
-
-.tool-link{
+#tool-guide-btn{
   background:none;
   border:none;
-  border-bottom:1px solid var(--text-faint);
-  color:var(--text);
-  font-family:"ABC Favorit", monospace;
-  text-align:left;
-  font-size:12px;
+  color:var(--text-dim);
+  font-family:inherit;
+  font-size:11px;
   letter-spacing:.05em;
-  padding:10px 0;
   cursor:pointer;
-  opacity:.6;
-  transition:opacity .2s;
+  padding:0;
+  text-decoration:underline;
+  text-underline-offset:2px;
+  opacity:.85;
+  transition:opacity .2s, color .2s;
 }
-
-.tool-link:hover{
-  opacity:.9;
-}
-
-.tool-num{
-  display:inline-block;
-}
-
-.tool-label{
-  display:inline-block;
-  margin-left:6px;
-  transition:transform .2s ease;
-}
-
-@keyframes tool-label-slide{
-  0%   { transform:translateX(0); }
-  100% { transform:translateX(14px); }
-}
-
-.tool-link:hover .tool-label{
-  animation:tool-label-slide .7s ease-in-out infinite alternate;
-}
-
-.tool-link.active{
+#tool-guide-btn:hover{
   opacity:1;
+  color:var(--text);
 }
-
-.tool-link.has-update{
-  opacity:1;
-}
-.tool-link.has-update .tool-label::after{
-  content:"";
-  display:inline-block;
-  width:6px; height:6px;
-  border-radius:50%;
-  background:#2bff00;
-  margin-left:8px;
-  vertical-align:middle;
+#tool-guide-btn:disabled{
+  opacity:.3;
+  pointer-events:none;
 }
 
 #tool-overlay-close{
@@ -283,7 +242,6 @@ html,body{
   padding:6px 10px;
   opacity:.7;
   transition:opacity .2s, background .2s, color .2s, border-color .2s;
-  align-self:flex-start;
 }
 
 #tool-overlay-close:hover{
@@ -291,57 +249,6 @@ html,body{
   background:#2bff00;
   color:#1f130d;
   border-color:#2bff00;
-}
-
-#tool-guide-btn{
-  background:none;
-  border:none;
-  color:var(--text-dim);
-  font-family:inherit;
-  font-size:11px;
-  letter-spacing:.05em;
-  cursor:pointer;
-  padding:0;
-  margin-top:14px;
-  text-decoration:underline;
-  text-underline-offset:2px;
-  opacity:.85;
-  transition:opacity .2s, color .2s;
-  align-self:flex-start;
-}
-#tool-guide-btn:hover{
-  opacity:1;
-  color:var(--text);
-}
-#tool-guide-btn:disabled{
-  opacity:.3;
-  pointer-events:none;
-}
-
-/* ---- right column: the open tool, about two thirds of the screen ---- */
-
-#tool-main{
-  position:relative;
-  flex:1;
-  min-width:0;
-  background:var(--bg);
-}
-
-/* the floating label sits in its own strip above the iframe now — each   */
-/* tool page renders its own header flush with the iframe's top edge, so  */
-/* without this reserved strip the two headers land on the same pixels    */
-/* and garble together (this is the overlap bug: the label and the        */
-/* tool's own in-page title were both drawn at top:10px/left:14px).       */
-#tool-overlay-title{
-  position:absolute;
-  top:10px;
-  left:14px;
-  height:20px;
-  font-size:10px;
-  letter-spacing:.04em;
-  color:var(--text-dim);
-  z-index:5;
-  pointer-events:none;
 }
 
 #tool-overlay-iframe{
@@ -582,23 +489,13 @@ html,body{
 <body>
 
 <div id="tool-overlay">
-  <div id="tool-sidebar">
-    <div id="tool-sidebar-title">READING MACHINES</div>
-    <nav id="tool-list">
-      <button class="tool-link" data-tool-src="tools/position-zero.html" data-tool-name="OCR Skeleton"><span class="tool-num">01</span><span class="tool-label">— OCR Skeleton</span></button>
-      <button class="tool-link" data-tool-src="tools/outline.html" data-tool-name="Blind Contour"><span class="tool-num">02</span><span class="tool-label">— Blind Contour</span></button>
-      <button class="tool-link" data-tool-src="tools/anti-ocr.html" data-tool-name="Anti Type"><span class="tool-num">03</span><span class="tool-label">— Anti Type</span></button>
-      <button class="tool-link" data-tool-src="tools/co-read.html" data-tool-name="Reading Loop"><span class="tool-num">04</span><span class="tool-label">— Reading in loop</span></button>
-      <button id="tool-guide-btn" disabled>how does it work?</button>
-    </nav>
-    <div id="tool-sidebar-hint">click a tool to switch — the current one keeps loading on the right</div>
-    <button id="tool-overlay-close">← back to space</button>
+  <div id="tool-overlay-bar">
+    <span id="tool-overlay-title">—</span>
+    <button id="tool-guide-btn" disabled>how does it work?</button>
+    <button id="tool-overlay-close">✕ close</button>
   </div>
-  <div id="tool-main">
-    <div id="tool-overlay-title">—</div>
-    <iframe id="anti-type-iframe" src="" title="Anti Type"></iframe>
-    <iframe id="tool-overlay-iframe" src="" title="tool"></iframe>
-  </div>
+  <iframe id="anti-type-iframe" src="" title="Anti Type"></iframe>
+  <iframe id="tool-overlay-iframe" src="" title="tool"></iframe>
 </div>
 
 <a href="index.html" id="back-to-start">← back to start</a>
@@ -903,7 +800,6 @@ const toolOverlay      = document.getElementById("tool-overlay");
 const toolOverlayFrame = document.getElementById("tool-overlay-iframe");
 const antiTypeFrame    = document.getElementById("anti-type-iframe");
 const toolOverlayTitle = document.getElementById("tool-overlay-title");
-const toolLinks        = document.querySelectorAll(".tool-link");
 const ANTI_TYPE_SRC    = "tools/anti-ocr.html";
 
 function openTool(src, name){
@@ -933,15 +829,11 @@ function openTool(src, name){
     toolOverlayTitle.textContent = name;
     toolOverlay.classList.add("show");
     document.getElementById("tool-guide-btn").disabled = false;
-
-    toolLinks.forEach(link=>{
-        link.classList.toggle("active", link.dataset.toolSrc === src);
-    });
 }
 
-// single sidebar entry point for every tool's own "how it works" guide —
-// each tool page still owns its guide content/modal, this just asks the
-// currently-visible iframe to open it
+// entry point for the tool's own "how it works" guide — each tool page
+// still owns its guide content/modal, this just asks the currently-visible
+// iframe to open it
 document.getElementById("tool-guide-btn").addEventListener("click", ()=>{
     const activeFrame = antiTypeFrame.classList.contains("show") ? antiTypeFrame : toolOverlayFrame;
     if(!activeFrame.contentWindow) return;
@@ -952,13 +844,11 @@ document.getElementById("tool-guide-btn").addEventListener("click", ()=>{
 /* when a word or font export finishes, via postMessage from its iframe.   */
 /* We try an OS notification, but don't rely on it alone — Safari in       */
 /* particular can silently withhold permission — so there's always a       */
-/* visible fallback too: a dot on the sidebar link plus a flashed tab      */
-/* title, both cleared the moment Anti Type is reopened.                   */
+/* visible fallback too: a flashed tab title, cleared the moment Anti      */
+/* Type is reopened.                                                       */
 const pageTitle = document.title;
-const antiTypeLink = document.querySelector('.tool-link[data-tool-src="' + ANTI_TYPE_SRC + '"]');
 
 function clearAntiTypeUpdateFlag(){
-    if(antiTypeLink) antiTypeLink.classList.remove("has-update");
     document.title = pageTitle;
 }
 
@@ -973,7 +863,6 @@ window.addEventListener("message", (event)=>{
     }
 
     // visible fallback, always shown regardless of notification permission
-    if(antiTypeLink) antiTypeLink.classList.add("has-update");
     document.title = "● " + pageTitle;
 });
 
@@ -981,18 +870,10 @@ window.addEventListener("focus", ()=>{
     if(antiTypeFrame.classList.contains("show")) clearAntiTypeUpdateFlag();
 });
 
-// switched from the sidebar, without leaving the overlay
-toolLinks.forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-        openTool(btn.dataset.toolSrc, btn.dataset.toolName);
-    });
-});
-
 document.getElementById("tool-overlay-close").addEventListener("click", ()=>{
     toolOverlay.classList.remove("show");
     toolOverlayFrame.src = "";
     toolOverlayFrame.dataset.currentSrc = "";
-    toolLinks.forEach(link=> link.classList.remove("active"));
 });
 
 </script>
