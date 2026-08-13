@@ -213,12 +213,12 @@
     }
     .bc-word{
       position:absolute; font-family:"ABC Favorit", monospace; color:var(--tp-text);
-      font-size:15px; line-height:1.3; max-width:200px; opacity:0; cursor:pointer;
-      padding:.15em .4em; margin:-.15em -.4em; border-radius:2px;
-      transition:opacity .6s ease, background .3s ease, color .3s ease;
+      font-size:14px; line-height:1.3; width:80px; opacity:0; cursor:pointer;
+      border:1px solid var(--tp-text-faint); padding:4px 6px; border-radius:2px;
+      transition:opacity .6s ease, background .3s ease, color .3s ease, border-color .3s ease;
     }
     .bc-word.visible{ opacity:1; }
-    .bc-word.current{ background:var(--tp-text); color:var(--tp-bg); }
+    .bc-word.current{ background:var(--tp-text); color:var(--tp-bg); border-color:var(--tp-text); }
 
     /* ---- 03 Anti Type ---- */
     .tp-float.tp-anti-write .tp-text{ position:static; inset:auto; }
@@ -593,7 +593,7 @@
               item.classList.add("visible");
               setCurrent(wi);
               scheduleRoam();
-          }, wi * 260);
+          }, wi * 900);
 
           item.addEventListener("click", ()=>{
               if(!item.classList.contains("visible")) return;
