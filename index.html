@@ -912,6 +912,8 @@
   // scrolling back up to it and trying again always gives that first
   // gesture back.
   let landingPrimed = false;
+  let landingGestureTimer = null;
+  const LANDING_GESTURE_GAP = 260; // ms of no wheel events = this swipe ended
 
   // explicit initial sync -- if the page loads already scrolled down
   // (e.g. the browser restoring your previous scroll position on a
@@ -939,7 +941,10 @@
   function jumpTo(idx){
       idx = Math.max(0, Math.min(allSections.length - 1, idx));
       sectionIndex = idx;
-      if(idx === 0) landingPrimed = false;
+      if(idx === 0){
+          landingPrimed = false;
+          clearTimeout(landingGestureTimer);
+      }
       // set in-presenter synchronously, the moment we decide to jump --
       // don't wait for the IntersectionObserver to confirm the scroll
       // landed, since with scroll-snap + smooth scrollIntoView fighting
@@ -966,11 +971,21 @@
       if(jumping) return;
       if(e.deltaY > 10){
           if(sectionIndex === 0 && !landingPrimed){
-              landingPrimed = true; // this gesture reveals more text instead of jumping
+              // a single physical trackpad/mouse swipe fires many wheel
+              // events in a fast burst, not one -- nudge the marquee on
+              // EVERY tick of this first swipe (so the text visibly moves
+              // in sync with the gesture, same as a normal scroll would),
+              // and only arm the "next swipe jumps to OCR Skeleton" state
+              // once the burst actually pauses. Acting on just the first
+              // event and arming immediately meant the burst's second
+              // event, fired a few ms later, already saw landingPrimed
+              // true and jumped away before any movement was visible.
               if(typeof window.nudgeMarquee === "function"){
-                  const amount = Math.max(140, Math.min(Math.abs(e.deltaY) * 2.5, 420));
+                  const amount = Math.max(40, Math.min(Math.abs(e.deltaY) * 2.5, 260));
                   window.nudgeMarquee(amount);
               }
+              clearTimeout(landingGestureTimer);
+              landingGestureTimer = setTimeout(()=>{ landingPrimed = true; }, LANDING_GESTURE_GAP);
               return;
           }
           jumpTo(sectionIndex + 1);
