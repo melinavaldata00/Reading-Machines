@@ -40,29 +40,40 @@
       .docs-link{ bottom:14px; right:14px; padding:8px 13px; font-size:11px; }
     }
 
-    .site-title{
+    /* matches RMDocumentation's header exactly (position, box, type) */
+    .site-header{
       position:fixed;
-      top:20px;
-      left:24px;
-      margin:0;
-      font-size:13px;
-      letter-spacing:.08em;
-      text-transform:uppercase;
-      color:#1f130d;
-      font-family:"ABC Favorit", monospace;
-      font-weight:400;
-      z-index:90;
+      top:0; left:0; right:0;
+      z-index:100;
+      background:#ffffff;
+      border-bottom:1px solid #000;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 24px;
+      height:40px;
       transition:opacity .3s ease;
+    }
+    .h-title{
+      font-family:"ABC Favorit", Helvetica, Arial, sans-serif;
+      font-size:13px;
+      font-weight:400;
+      letter-spacing:0;
+      color:#1f130d;
     }
     /* same gating as .docs-link -- it's landing-only chrome, fades out  */
     /* once you've scrolled down into the tool pages.                    */
-    body.in-presenter .site-title{
+    body.in-presenter .site-header{
       opacity:0;
       pointer-events:none;
     }
     @media(max-width:480px){
-      .site-title{ top:14px; left:14px; font-size:11px; }
+      .h-title{ font-size:11px; }
     }
+    /* room for the fixed 40px header so it doesn't sit on top of the    */
+    /* marquee text, same compensation RMDocumentation uses (padding-top */
+    /* on its content views to clear its own sticky header).             */
+    .landing{ padding-top:72px; }
 
     /* ════════════════════════════════════════════════════════════ */
     /* PRESENTER — the 4 tool pages, appended below the landing as    */
@@ -260,7 +271,9 @@
 </head>
 <body>
 
-  <h1 class="site-title">Reading Machines</h1>
+  <header class="site-header">
+    <div class="h-title">Reading Machines</div>
+  </header>
 
   <main class="landing">
 
