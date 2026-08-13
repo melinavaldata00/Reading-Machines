@@ -316,6 +316,12 @@ body.stage-results #export-row{ display: flex; opacity: 1; }
 <script>
 const API = 'https://reading-machines.onrender.com/layer';
 
+// same free-tier Render instance as Anti Type -- wake it up the moment
+// this page opens (cheap health-check route, no image processing) so a
+// cold start happens in the background instead of after the visitor
+// actually imports an image and hits "run".
+fetch('https://reading-machines.onrender.com/').catch(() => {});
+
 const S = {
   imageB64: null, imgW: 0, imgH: 0,
   letter: 20,

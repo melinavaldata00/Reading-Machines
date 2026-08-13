@@ -466,6 +466,14 @@ body.stage-results #iter-section{ display: block; }
 <script>
 const SERVER = 'https://reading-machines.onrender.com';
 
+// free-tier Render instances go to sleep after ~15min idle and take
+// 30-60s to wake back up on the first real request -- firing this the
+// moment the page opens means that wake-up happens in the background
+// while the visitor is still reading/typing, instead of adding to the
+// wait after they actually hit "run loop". Cheap health-check route,
+// no image processing involved, safe to fire-and-forget.
+fetch(SERVER + '/').catch(() => {});
+
 function bindSlider(id, valId, transform) {
   const sl = document.getElementById(id);
   const vl = document.getElementById(valId);
