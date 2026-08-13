@@ -55,14 +55,6 @@ function effectiveConf(g) {
 }
 
 const SHAPE_THRESHOLD = 8;
-// words read with at least this much confidence render as plain, legible
-// text — the dotted/textured pattern is meant to stand for uncertainty,
-// but was being applied to every machine-read word regardless of how
-// confidently it was actually read, making even correctly-recognized
-// text hard to read. Below this (but still above SHAPE_THRESHOLD) is
-// where the textured pattern now actually means something: text the
-// machine is genuinely unsure about.
-const LEGIBLE_THRESHOLD = 78;
 
 function updateStats() {
   const st = S.timeline[S.currentIdx];
@@ -308,7 +300,7 @@ function renderGroupVisual(g) {
   const conf = effectiveConf(g);
   const greyOf = pct => Math.round(255 - (pct / 100) * 180);
 
-  if (g.textOverridden || conf >= LEGIBLE_THRESHOLD) {
+  if (g.textOverridden) {
     const t = document.createElementNS(SVG_NS, 'text');
     t.setAttribute('x', g.x + g.w / 2);
     t.setAttribute('y', g.y + g.h / 2);
