@@ -248,6 +248,14 @@ window.nudgeMarquee = function(amount){
     wrapScroll();
 };
 
+// exposed so index.html's wheel handler knows whether the marquee is
+// still on its first text state (STATE 01) -- scroll only scrubs the
+// text during that state; once it's moved on, scroll goes back to
+// jumping between sections like everywhere else on the site.
+window.getMarqueeState = function(){
+    return currentState;
+};
+
 /* ------------------------------ */
 /* CLICK-THROUGH — clicking either column jumps down to the tool pages,  */
 /* which now live further down this same page instead of a separate one. */

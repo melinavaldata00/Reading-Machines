@@ -903,17 +903,13 @@
   let jumping = false;
   let jumpCooldown = null;
 
-  // the landing gets one "free" scroll gesture before it jumps anywhere --
-  // its marquee keeps auto-playing on its own regardless of real scroll,
-  // so the first wheel tick just gives the text more time to keep
-  // revealing itself instead of whisking the visitor straight to OCR
-  // Skeleton before they've read anything. The second gesture jumps, same
-  // as every other section. Resets whenever landing is reached again, so
-  // scrolling back up to it and trying again always gives that first
-  // gesture back.
-  let landingPrimed = false;
-  let landingGestureTimer = null;
-  const LANDING_GESTURE_GAP = 260; // ms of no wheel events = this swipe ended
+  // scroll only drives the marquee while it's showing its first text state
+  // (STATE 01) -- every wheel tick scrubs it directly and proportionally
+  // (fluid, 1:1 with the gesture), same as scrolling any normal page.
+  // once the marquee has moved past state 01 (it auto-cycles on its own
+  // as it plays, or the visitor clicks the state label), scrolling here
+  // stops scrubbing text and jumps to OCR Skeleton like every other
+  // section boundary on the site.
 
   // explicit initial sync -- if the page loads already scrolled down
   // (e.g. the browser restoring your previous scroll position on a
@@ -941,10 +937,6 @@
   function jumpTo(idx){
       idx = Math.max(0, Math.min(allSections.length - 1, idx));
       sectionIndex = idx;
-      if(idx === 0){
-          landingPrimed = false;
-          clearTimeout(landingGestureTimer);
-      }
       // set in-presenter synchronously, the moment we decide to jump --
       // don't wait for the IntersectionObserver to confirm the scroll
       // landed, since with scroll-snap + smooth scrollIntoView fighting
@@ -966,28 +958,25 @@
       jumpCooldown = setTimeout(()=>{ jumping = false; }, 900);
   }
 
+  function onLandingFirstState(){
+      return sectionIndex === 0 &&
+          typeof window.getMarqueeState === "function" &&
+          window.getMarqueeState() === 1;
+  }
+
   function handleWheel(e){
       e.preventDefault();
       if(jumping) return;
-      if(e.deltaY > 10){
-          if(sectionIndex === 0 && !landingPrimed){
-              // a single physical trackpad/mouse swipe fires many wheel
-              // events in a fast burst, not one -- nudge the marquee on
-              // EVERY tick of this first swipe (so the text visibly moves
-              // in sync with the gesture, same as a normal scroll would),
-              // and only arm the "next swipe jumps to OCR Skeleton" state
-              // once the burst actually pauses. Acting on just the first
-              // event and arming immediately meant the burst's second
-              // event, fired a few ms later, already saw landingPrimed
-              // true and jumped away before any movement was visible.
-              if(typeof window.nudgeMarquee === "function"){
-                  const amount = Math.max(40, Math.min(Math.abs(e.deltaY) * 2.5, 260));
-                  window.nudgeMarquee(amount);
-              }
-              clearTimeout(landingGestureTimer);
-              landingGestureTimer = setTimeout(()=>{ landingPrimed = true; }, LANDING_GESTURE_GAP);
-              return;
+      if(onLandingFirstState()){
+          // fluid, direct scrub -- the text moves proportionally with the
+          // wheel itself, not in fixed chunks, so it tracks the gesture
+          // the way a normal scroll would.
+          if(typeof window.nudgeMarquee === "function"){
+              window.nudgeMarquee(e.deltaY * 1.6);
           }
+          return;
+      }
+      if(e.deltaY > 10){
           jumpTo(sectionIndex + 1);
       } else if(e.deltaY < -10){
           jumpTo(sectionIndex - 1);
