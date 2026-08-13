@@ -52,12 +52,20 @@
       position:relative;
     }
     .hero{
-      position:absolute;
+      position:fixed;
       top:0; left:0; right:0;
       z-index:5;
       background:#ffffff;
       padding-bottom:20px;
       pointer-events:none; /* purely visual -- clicks/scroll reach the marquee beneath it */
+      transition:opacity .3s ease;
+    }
+    /* stays pinned exactly in place on the landing (never travels during   */
+    /* the jumpTo() transition since it's fixed to the viewport, not the    */
+    /* document) and fades out once you've moved into the tool pages, same  */
+    /* gating as .docs-link.                                                */
+    body.in-presenter .hero{
+      opacity:0;
     }
     .hero h1{
       margin:0;
