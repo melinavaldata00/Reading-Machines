@@ -42,20 +42,22 @@
 
     /* big hero title, same typographic treatment as RMDocumentation's   */
     /* hero h1 (clamp size, weight 400, tight line-height, -.02em        */
-    /* tracking) -- just without its subtitle line. Lives inside .landing */
-    /* itself (not fixed) so it scrolls away naturally with everything    */
-    /* else and needs no opacity-gating hack; .landing goes from a plain  */
-    /* 2-col grid to a flex column so the hero takes its natural height   */
-    /* and the marquee panels take whatever's left, still fitting the     */
-    /* whole first page in one 100vh viewport.                            */
+    /* tracking) -- just without its subtitle line. The marquee panels    */
+    /* keep their original full-height 2-col grid (nothing shrinks for    */
+    /* the hero); the hero instead floats as an absolutely-positioned      */
+    /* overlay on top, with an opaque background, so the scrolling text    */
+    /* visibly passes behind it rather than the title eating its own       */
+    /* block of vertical space above the marquee.                          */
     .landing{
-      display:flex;
-      flex-direction:column;
+      position:relative;
     }
     .hero{
-      flex:0 0 auto;
+      position:absolute;
+      top:0; left:0; right:0;
+      z-index:5;
+      background:#ffffff;
       padding-bottom:20px;
-      margin-bottom:20px;
+      pointer-events:none; /* purely visual -- clicks/scroll reach the marquee beneath it */
     }
     .hero h1{
       margin:0;
@@ -65,16 +67,6 @@
       line-height:.92;
       letter-spacing:-.02em;
       color:#1f130d;
-    }
-    .landing-panels{
-      flex:1;
-      min-height:0;
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:48px;
-    }
-    @media(max-width:480px){
-      .hero{ padding-bottom:12px; margin-bottom:12px; }
     }
 
     /* ════════════════════════════════════════════════════════════ */
@@ -277,23 +269,21 @@
 
     <div class="hero"><h1>Reading Machines</h1></div>
 
-    <div class="landing-panels">
-      <section class="panel">
-        <div class="viewport">
-          <div class="marquee" id="human">
-            <div class="content"></div>
-          </div>
+    <section class="panel">
+      <div class="viewport">
+        <div class="marquee" id="human">
+          <div class="content"></div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="panel">
-        <div class="viewport">
-          <div class="marquee" id="machine">
-            <div class="content"></div>
-          </div>
+    <section class="panel">
+      <div class="viewport">
+        <div class="marquee" id="machine">
+          <div class="content"></div>
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
 
   </main>
 

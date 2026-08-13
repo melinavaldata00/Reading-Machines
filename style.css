@@ -105,11 +105,14 @@ html, body{
 /* VIEW MODES */
 /* ------------------------------------------------ */
 
-body.show-human .panel:last-child .viewport{
+/* :first-of-type/:last-of-type instead of :first-child/:last-child --   */
+/* .landing's first DOM child is now the absolutely-positioned .hero,    */
+/* not a .panel, so :first-child would never match either panel.         */
+body.show-human .panel:last-of-type .viewport{
     visibility:hidden;
 }
 
-body.show-machine .panel:first-child .viewport{
+body.show-machine .panel:first-of-type .viewport{
     visibility:hidden;
 }
 
