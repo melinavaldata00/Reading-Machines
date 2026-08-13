@@ -40,6 +40,30 @@
       .docs-link{ bottom:14px; right:14px; padding:8px 13px; font-size:11px; }
     }
 
+    .site-title{
+      position:fixed;
+      top:20px;
+      left:24px;
+      margin:0;
+      font-size:13px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:#1f130d;
+      font-family:"ABC Favorit", monospace;
+      font-weight:400;
+      z-index:90;
+      transition:opacity .3s ease;
+    }
+    /* same gating as .docs-link -- it's landing-only chrome, fades out  */
+    /* once you've scrolled down into the tool pages.                    */
+    body.in-presenter .site-title{
+      opacity:0;
+      pointer-events:none;
+    }
+    @media(max-width:480px){
+      .site-title{ top:14px; left:14px; font-size:11px; }
+    }
+
     /* ════════════════════════════════════════════════════════════ */
     /* PRESENTER — the 4 tool pages, appended below the landing as    */
     /* normal scroll sections. Own --tp-* palette vars (namespaced,   */
@@ -235,6 +259,8 @@
   </style>
 </head>
 <body>
+
+  <h1 class="site-title">Reading Machines</h1>
 
   <main class="landing">
 
