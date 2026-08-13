@@ -179,17 +179,26 @@
       display:block; font-family:"ABC Favorit", Helvetica, Arial, sans-serif; font-size:clamp(48px, 9vw, 120px);
       font-weight:400; line-height:.92; letter-spacing:-.02em; color:#1f130d;
     }
-    .tp-float .tp-text{ position:absolute; inset:0; }
-    .ocr-box{
-      position:absolute; border:1px solid var(--tp-text-dim); padding:.55em .85em; line-height:1.3;
-      max-width:min(78vw, 520px); background:var(--tp-bg); opacity:0; pointer-events:none; cursor:default;
-      transition:opacity .6s ease, border-color .2s ease, background .2s ease, color .2s ease;
+    /* mosaic of accumulating boxes, growing from the top down as more get   */
+    /* revealed -- same flex-wrap pattern Blind Contour's tool-page already   */
+    /* uses, not the old absolutely-positioned/floating boxes.               */
+    .tp-float .tp-text{
+      position:absolute; inset:0; overflow-y:auto;
+      display:flex; flex-wrap:wrap; align-content:flex-start;
+      gap:10px 14px; padding:220px 90px 60px 24px;
     }
-    .ocr-box.visible{ opacity:1; pointer-events:auto; animation:var(--floatAnim) var(--fdur) ease-in-out infinite alternate; }
-    .ocr-box.clickable{ border-color:var(--tp-text); cursor:pointer; }
-    .ocr-box.clickable:hover{ background:var(--tp-text); color:var(--tp-bg); }
-    @keyframes boxFloatDown{ from{ transform:translateY(calc(-1 * var(--famp))); } to{ transform:translateY(var(--famp)); } }
-    @keyframes boxFloatUp{ from{ transform:translateY(var(--famp)); } to{ transform:translateY(calc(-1 * var(--famp))); } }
+    .ocr-box{
+      border:1px solid var(--tp-text-faint); padding:.55em .85em; line-height:1.3;
+      max-width:min(60vw, 420px); font-size:15px; opacity:0; cursor:default;
+      transition:opacity .5s ease, border-color .3s ease, background .3s ease, color .3s ease;
+    }
+    .ocr-box.visible{ opacity:1; }
+    /* the current box: filled, fully readable -- the one "being read"      */
+    .ocr-box.current{ background:var(--tp-text); color:var(--tp-bg); border-color:var(--tp-text); cursor:pointer; }
+    .ocr-box.current:hover{ opacity:.85; }
+    /* everything read before it: reduced to a bare outline, no legible     */
+    /* text -- the literal "skeleton" once a newer box has taken its place. */
+    .ocr-box.skeleton{ color:transparent; background:none; border-color:var(--tp-text-faint); cursor:default; }
 
     /* ---- 02 Blind Contour — each word covered by a grid of digital static */
     /* ("discards the rest as noise", straight from the tool's own text),   */
@@ -225,7 +234,12 @@
     .bc-word.revealed .bc-noise i{ opacity:0; transition-delay:var(--nd2, 0s); }
 
     /* ---- 03 Anti Type ---- */
-    .tp-float.tp-anti-write .tp-text{ position:static; inset:auto; }
+    /* undo OCR Skeleton's mosaic flex layout -- Anti Type shares the       */
+    /* .tp-float base class but its .at-panel is a normal block, not a set  */
+    /* of accumulating .ocr-box mosaic tiles.                               */
+    .tp-float.tp-anti-write .tp-text{
+      position:static; inset:auto; display:block; overflow:visible; padding:0; gap:0;
+    }
     .at-panel{ margin:240px 90px 60px 24px; }
     .at-body{
       font-family:"Anti-Type", monospace; font-size:clamp(40px, 6.5vw, 84px); line-height:1.3;
@@ -379,10 +393,13 @@
   // Type's typing effect) only while its page is actually on screen.
   const pageHooks = {};
 
-  // 01 OCR Skeleton — the text is chunked into longer groups of words, each
-  // one living inside a floating box of its own size, drifting slowly up or down.
-  // Only the first box starts visible; clicking a box reveals the next one,
-  // placed elsewhere in the space — the guesses arrive one at a time.
+  // 01 OCR Skeleton — the text is chunked into longer groups of words, laid
+  // out as an accumulating mosaic of boxes (flex-wrap, grows top-down).
+  // Only the first box starts visible, filled and readable ("current").
+  // Clicking it reveals the next box and demotes itself to a bare-outline
+  // "skeleton" tile -- text hidden, just the bounding box left behind --
+  // so the mosaic reads as a trail of already-read fragments accumulating
+  // behind whichever one is currently active.
   function wrapFloatBoxes(block){
       const raw = block.dataset.text.replace(/\s+/g, ' ').trim();
       const blockIdx = wrapCounter++;
@@ -436,91 +453,30 @@
           chunks[chunks.length - 1] += ' ' + last;
       }
 
-      const boxes = chunks.map((chunk, ci)=>{
+      // plain document-order tiles now -- no per-box random position/size/
+      // float, the flex-wrap container on .tp-text does the layout, growing
+      // as a mosaic from the top down the same way Blind Contour's does.
+      const boxes = chunks.map(chunk=>{
           const box = document.createElement("div");
           box.className = "ocr-box";
           box.textContent = chunk;
-
-          // top/famp kept conservative on purpose: boxes now hold longer
-          // phrases (taller, wrapped over 2-3 lines), and this page clips
-          // overflow -- a box spawned too low, combined with its own
-          // height plus the float drift, could sit partly or fully below
-          // the visible area and read as if the text just stopped.
-          const seed = blockIdx*1000 + ci;
-          const left  = 6  + tpSeededRandom(seed + 0.1) * 66;
-          const top   = 8  + tpSeededRandom(seed + 0.2) * 46;
-          const fsize = 14 + tpSeededRandom(seed + 0.3) * 16;
-          const fdur  = 4.5 + tpSeededRandom(seed + 0.4) * 4.5;
-          const famp  = 16 + tpSeededRandom(seed + 0.5) * 40;
-          const goingDown = tpSeededRandom(seed + 0.6) > 0.5;
-
-          box.style.left = left.toFixed(1) + "%";
-          box.style.top  = top.toFixed(1) + "%";
-          box.style.fontSize = fsize.toFixed(1) + "px";
-          box.style.setProperty("--fdur", fdur.toFixed(2) + "s");
-          box.style.setProperty("--famp", famp.toFixed(1) + "px");
-          box.style.setProperty("--floatAnim", goingDown ? "boxFloatDown" : "boxFloatUp");
-
           block.appendChild(box);
           return box;
       });
 
-      // clicking a phrase box also breaks it down into its own words --
-      // a second, finer pass of "bounding boxes", same as OCR itself
-      // works in stages (block/line/word) rather than reading everything
-      // at one resolution. The words spawn scattered close to where the
-      // phrase was, each with its own float, and the phrase box that
-      // spawned them fades out -- it's been superseded by its own detail.
-      function splitIntoWords(box, seed){
-          const words = box.textContent.trim().split(/\s+/).filter(Boolean);
-          if(!words.length) return;
-
-          const originLeft = parseFloat(box.style.left) || 40;
-          const originTop  = parseFloat(box.style.top)  || 30;
-
-          words.forEach((word, wi)=>{
-              const wSeed = seed*1000 + wi;
-              const jitterX = (tpSeededRandom(wSeed + 0.1) - 0.5) * 22;
-              const jitterY = (tpSeededRandom(wSeed + 0.2) - 0.5) * 18;
-              const left = Math.max(3, Math.min(80, originLeft + jitterX));
-              const top  = Math.max(5, Math.min(60, originTop  + jitterY));
-              const fsize = 10 + tpSeededRandom(wSeed + 0.3) * 9;
-              const fdur  = 3.5 + tpSeededRandom(wSeed + 0.4) * 4;
-              const famp  = 10 + tpSeededRandom(wSeed + 0.5) * 26;
-              const goingDown = tpSeededRandom(wSeed + 0.6) > 0.5;
-
-              const wbox = document.createElement("div");
-              wbox.className = "ocr-box ocr-box-word";
-              wbox.textContent = word;
-              wbox.style.left = left.toFixed(1) + "%";
-              wbox.style.top  = top.toFixed(1) + "%";
-              wbox.style.fontSize = fsize.toFixed(1) + "px";
-              wbox.style.setProperty("--fdur", fdur.toFixed(2) + "s");
-              wbox.style.setProperty("--famp", famp.toFixed(1) + "px");
-              wbox.style.setProperty("--floatAnim", goingDown ? "boxFloatDown" : "boxFloatUp");
-              wbox.style.animationDelay = (wi * 0.05).toFixed(2) + "s";
-
-              block.appendChild(wbox);
-              // rAF so the "visible" transition still runs instead of
-              // starting already-visible (element needs one painted
-              // frame at opacity 0 first for the CSS transition to fire).
-              requestAnimationFrame(()=> wbox.classList.add("visible"));
-          });
-
-          box.classList.remove("visible");
-          setTimeout(()=> box.remove(), 650);
-      }
-
+      // clicking the current (filled, readable) box reveals the next one
+      // and demotes itself to a skeleton -- a bare outline, text hidden --
+      // so the mosaic reads as an accumulating trail of "already read"
+      // tiles behind whichever one is currently active.
       function revealBox(ci){
           const box = boxes[ci];
-          box.classList.add("visible");
+          box.classList.add("visible", "current");
           if(ci < boxes.length - 1){
-              box.classList.add("clickable");
               box.addEventListener("click", ()=>{
                   if(box.dataset.used) return;
                   box.dataset.used = "1";
-                  box.classList.remove("clickable");
-                  splitIntoWords(box, blockIdx*1000 + ci);
+                  box.classList.remove("current");
+                  box.classList.add("skeleton");
                   revealBox(ci + 1);
               });
           }
