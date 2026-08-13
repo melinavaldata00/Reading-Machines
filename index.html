@@ -74,6 +74,12 @@
     /* DOM, since script.js still references #human directly throughout.  */
     .landing-panels .panel:first-of-type{ display:none; }
     .landing-panels .panel:last-of-type{ grid-column:1; }
+    /* with only one column shown, give it more of the row than the old   */
+    /* even 1fr/1fr split (that math still reserves the other half for    */
+    /* the now-hidden human panel, wasting it as blank space on the right).*/
+    @media (min-width: 900px){
+      .landing-panels{ grid-template-columns: minmax(0, 78%) 1fr; }
+    }
 
     /* ════════════════════════════════════════════════════════════ */
     /* PRESENTER — the 4 tool pages, appended below the landing as    */
