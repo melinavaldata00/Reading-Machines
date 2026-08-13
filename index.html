@@ -40,41 +40,34 @@
       .docs-link{ bottom:14px; right:14px; padding:8px 13px; font-size:11px; }
     }
 
-    /* big hero title, same typographic treatment as RMDocumentation's   */
-    /* hero h1 (clamp size, weight 400, tight line-height, -.02em        */
-    /* tracking) -- just without its subtitle line. The marquee panels    */
-    /* keep their original full-height 2-col grid (nothing shrinks for    */
-    /* the hero); the hero instead floats as an absolutely-positioned      */
-    /* overlay on top, with an opaque background, so the scrolling text    */
-    /* visibly passes behind it rather than the title eating its own       */
-    /* block of vertical space above the marquee.                          */
+    /* hero title -- same structural position as RMDocumentation's hero   */
+    /* (a normal block sitting in the page flow, not fixed/floating), but */
+    /* kept deliberately compact: RMDocumentation has a whole page below   */
+    /* it to give it room, we only have the marquee's 100vh to share, so   */
+    /* the padding/font stay much smaller to avoid crowding the text out.  */
     .landing{
-      position:relative;
+      display:flex;
+      flex-direction:column;
     }
     .hero{
-      position:fixed;
-      top:0; left:0; right:0;
-      z-index:5;
-      background:#ffffff;
-      padding-bottom:20px;
-      pointer-events:none; /* purely visual -- clicks/scroll reach the marquee beneath it */
-      transition:opacity .3s ease;
-    }
-    /* stays pinned exactly in place on the landing (never travels during   */
-    /* the jumpTo() transition since it's fixed to the viewport, not the    */
-    /* document) and fades out once you've moved into the tool pages, same  */
-    /* gating as .docs-link.                                                */
-    body.in-presenter .hero{
-      opacity:0;
+      flex:0 0 auto;
+      padding-bottom:10px;
     }
     .hero h1{
       margin:0;
       font-family:"ABC Favorit", Helvetica, Arial, sans-serif;
-      font-size:clamp(40px, 7vw, 96px);
+      font-size:clamp(22px, 3vw, 34px);
       font-weight:400;
-      line-height:.92;
-      letter-spacing:-.02em;
+      line-height:1.1;
+      letter-spacing:-.01em;
       color:#1f130d;
+    }
+    .landing-panels{
+      flex:1;
+      min-height:0;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:48px;
     }
 
     /* ════════════════════════════════════════════════════════════ */
@@ -277,21 +270,23 @@
 
     <div class="hero"><h1>Reading Machines</h1></div>
 
-    <section class="panel">
-      <div class="viewport">
-        <div class="marquee" id="human">
-          <div class="content"></div>
+    <div class="landing-panels">
+      <section class="panel">
+        <div class="viewport">
+          <div class="marquee" id="human">
+            <div class="content"></div>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="panel">
-      <div class="viewport">
-        <div class="marquee" id="machine">
-          <div class="content"></div>
+      <section class="panel">
+        <div class="viewport">
+          <div class="marquee" id="machine">
+            <div class="content"></div>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
 
   </main>
 
