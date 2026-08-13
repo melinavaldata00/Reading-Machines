@@ -211,14 +211,18 @@
         repeating-linear-gradient(0deg, var(--tp-text-faint) 0, var(--tp-text-faint) 1px, transparent 1px, transparent 52px),
         repeating-linear-gradient(90deg, var(--tp-text-faint) 0, var(--tp-text-faint) 1px, transparent 1px, transparent 88px);
     }
+    /* no border/box of its own -- each word sits directly inside one cell   */
+    /* of the background grid drawn above (88px x 52px, same numbers used   */
+    /* in wrapAbstractWords()'s placement math), so the grid lines already   */
+    /* on screen read as its container instead of a second box on top of it. */
     .bc-word{
       position:absolute; font-family:"ABC Favorit", monospace; color:var(--tp-text);
-      font-size:14px; line-height:1.3; width:80px; opacity:0; cursor:pointer;
-      border:1px solid var(--tp-text-faint); padding:4px 6px; border-radius:2px;
-      transition:opacity .6s ease, background .3s ease, color .3s ease, border-color .3s ease;
+      font-size:13px; line-height:1.25; opacity:0; cursor:pointer;
+      padding:2px 4px;
+      transition:opacity .6s ease, background .3s ease, color .3s ease;
     }
     .bc-word.visible{ opacity:1; }
-    .bc-word.current{ background:var(--tp-text); color:var(--tp-bg); border-color:var(--tp-text); }
+    .bc-word.current{ background:var(--tp-text); color:var(--tp-bg); }
 
     /* ---- 03 Anti Type ---- */
     .tp-float.tp-anti-write .tp-text{ position:static; inset:auto; }
@@ -538,8 +542,24 @@
       const words = text.split(' ').filter(Boolean);
       if(!words.length) return;
 
-      const COLS = 8;
-      const ROWS = Math.max(1, Math.ceil((words.length * 1.6) / COLS));
+      // same 88px x 52px cell size as the background-grid drawn behind this
+      // block (.tp-bc-exaggerate .tp-text's repeating-linear-gradient) --
+      // words are placed in real pixels on that same grid so they land
+      // inside one of its actual cells, instead of on an independent
+      // percentage-based layout that just happens to overlap it.
+      const CELL_W = 88;
+      const CELL_H = 52;
+
+      const boxW = block.clientWidth  || window.innerWidth;
+      const boxH = block.clientHeight || window.innerHeight;
+
+      const gridCols = Math.max(1, Math.floor(boxW / CELL_W));
+      const gridRows = Math.max(1, Math.floor(boxH / CELL_H));
+      // if there are more words than cells actually visible on screen,
+      // grow downward rather than let words double up in the same cell --
+      // overflow:hidden on the block just clips anything past the fold.
+      const ROWS = Math.max(gridRows, Math.ceil(words.length / gridCols));
+      const COLS = gridCols;
 
       // every grid slot, seeded-shuffled, handed out one per word -- so no
       // two words ever land on the same cell.
@@ -556,16 +576,17 @@
 
       const items = words.map((word, wi)=>{
           const slot = slots[wi % slots.length];
-          const jitterX = (tpSeededRandom(blockIdx*1000 + wi + 0.3) - 0.5) * 4;
-          const jitterY = (tpSeededRandom(blockIdx*1000 + wi + 0.6) - 0.5) * 4;
-          const left = Math.min(92, Math.max(2, (slot.c / COLS) * 100 + jitterX));
-          const top  = Math.min(90, Math.max(4, (slot.r / ROWS) * 100 + jitterY));
+          // small fixed inset so the word clears the grid lines on every
+          // side instead of sitting flush against them.
+          const left = slot.c * CELL_W + 6;
+          const top  = slot.r * CELL_H + 6;
 
           const el = document.createElement("div");
           el.className = "bc-word";
           el.textContent = word;
-          el.style.left = left.toFixed(1) + "%";
-          el.style.top  = top.toFixed(1) + "%";
+          el.style.left = left + "px";
+          el.style.top  = top + "px";
+          el.style.maxWidth = (CELL_W - 12) + "px";
           block.appendChild(el);
           return el;
       });
