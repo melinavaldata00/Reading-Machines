@@ -191,12 +191,13 @@
     @keyframes boxFloatDown{ from{ transform:translateY(calc(-1 * var(--famp))); } to{ transform:translateY(var(--famp)); } }
     @keyframes boxFloatUp{ from{ transform:translateY(var(--famp)); } to{ transform:translateY(calc(-1 * var(--famp))); } }
 
-    /* ---- 02 Blind Contour — each word covered by a grid of digital static */
-    /* ("discards the rest as noise", straight from the tool's own text),   */
-    /* not a hand-drawn mark -- fits the site's monospace/grid aesthetic     */
-    /* better than an organic scribble. Hovering dissolves the noise block   */
-    /* by block to reveal the word; a few seconds later it reassembles and   */
-    /* covers it again. ---- */
+    /* ---- 02 Blind Contour — accumulating mosaic of phrase chunks (same    */
+    /* structure as OCR Skeleton's "current vs. already-read" tiles), but    */
+    /* using Blind Contour's own established language for the "already      */
+    /* read" state: covered by a grid of digital static ("discards the      */
+    /* rest as noise", straight from the tool's own text) instead of a      */
+    /* bare outline. The current chunk sits clean/readable; clicking it      */
+    /* permanently covers it with noise and reveals the next chunk clean.   */
     .tool-page.tp-bc-exaggerate{ padding:0; overflow:hidden; }
     .tp-bc-exaggerate .tp-head{ position:absolute; top:40px; left:24px; z-index:2; margin:0; }
     .tp-bc-exaggerate .tp-title{
@@ -204,16 +205,23 @@
       font-weight:400; line-height:.92; letter-spacing:-.02em; color:var(--tp-text);
     }
     .tp-bc-exaggerate .tp-text{
-      position:absolute; inset:0; display:flex; flex-wrap:wrap; align-content:center;
-      gap:14px 34px; padding:220px 90px 60px 24px;
+      position:absolute; inset:0; overflow-y:auto;
+      display:flex; flex-wrap:wrap; align-content:flex-start;
+      gap:10px 14px; padding:220px 90px 60px 24px;
     }
-    .bc-word{ position:relative; display:inline-block; cursor:pointer; animation:tpFadeUp .45s ease both; }
+    .bc-word{
+      position:relative; border:1px solid var(--tp-text-faint); padding:.55em .85em; line-height:1.3;
+      max-width:min(60vw, 420px); font-size:15px; opacity:0; cursor:default;
+      transition:opacity .5s ease, border-color .3s ease;
+    }
+    .bc-word.visible{ opacity:1; }
+    .bc-word.current{ border-color:var(--tp-text); cursor:pointer; }
+    .bc-word.current:hover{ opacity:.85; }
     .bc-label{
-      display:inline-block; font-family:"ABC Favorit", monospace; font-size:clamp(38px, 6.6vw, 92px);
-      line-height:1.15; color:var(--tp-text); white-space:nowrap;
+      display:block; font-family:"ABC Favorit", monospace; color:var(--tp-text);
     }
     .bc-noise{
-      position:absolute; inset:-6% -3%;
+      position:absolute; inset:0;
       display:grid; grid-template-columns:repeat(12, 1fr); grid-template-rows:repeat(5, 1fr);
       gap:1px; pointer-events:none;
     }
@@ -222,7 +230,8 @@
       opacity:var(--op, .8);
       transition:opacity .3s ease var(--nd, 0s);
     }
-    .bc-word.revealed .bc-noise i{ opacity:0; transition-delay:var(--nd2, 0s); }
+    /* current chunk: noise hidden, label reads clean */
+    .bc-word.current .bc-noise i{ opacity:0; transition-delay:var(--nd2, 0s); }
 
     /* ---- 03 Anti Type ---- */
     .tp-float.tp-anti-write .tp-text{ position:static; inset:auto; }
@@ -529,41 +538,54 @@
       if(boxes.length) revealBox(0);
   }
 
-  // 02 Blind Contour — each word covered by a grid of digital static, a
-  // literal read of the tool's own line "discards the rest as noise":
-  // small blocks at random opacity, in the site's own monospace/grid
-  // language rather than an organic hand-drawn mark. Hovering dissolves
-  // the blocks (each with its own tiny random delay, so it reads as
-  // noise clearing rather than a uniform wipe) to reveal the word; a few
-  // seconds later — automatically, regardless of whether the mouse is
-  // still there — the static reassembles and covers it again.
+  // 02 Blind Contour — same accumulating-mosaic structure as OCR Skeleton
+  // (phrase chunks flowing into a flex-wrap grid, one "current" chunk
+  // active at a time), but the "already read" state uses Blind Contour's
+  // own established language instead of a bare outline: a grid of digital
+  // static covers it, a literal read of the tool's own line "discards the
+  // rest as noise". The current chunk reads clean, with the noise hidden;
+  // clicking it permanently drops the noise over it and reveals the next
+  // chunk clean in its place.
   const BC_COLS = 12, BC_ROWS = 5;
 
   function wrapAbstractWords(block){
       const text = block.dataset.text.replace(/\s+/g, ' ').trim();
       const blockIdx = wrapCounter++;
-      const words = text.split(' ');
-      const REVEAL_MS = 2500;
+      const words = text.split(' ').filter(Boolean);
 
-      words.forEach((word, wi)=>{
-          const wrap = document.createElement("span");
+      // same 5-8 word phrase chunking as OCR Skeleton's mosaic
+      const chunks = [];
+      let wi = 0, gi = 0;
+      while(wi < words.length){
+          const size = 5 + Math.floor(tpSeededRandom(blockIdx*1000 + gi) * 4);
+          const take = [];
+          while(wi < words.length && take.length < size){ take.push(words[wi]); wi++; }
+          chunks.push(take.join(' '));
+          gi++;
+      }
+      if(chunks.length > 1 && chunks[chunks.length - 1].split(' ').length < 3){
+          const last = chunks.pop();
+          chunks[chunks.length - 1] += ' ' + last;
+      }
+
+      const items = chunks.map((chunk, ci)=>{
+          const wrap = document.createElement("div");
           wrap.className = "bc-word";
-          wrap.style.animationDelay = (wi * 0.04).toFixed(3) + 's';
 
           const label = document.createElement("span");
           label.className = "bc-label";
-          label.textContent = word;
+          label.textContent = chunk;
 
           const noise = document.createElement("span");
           noise.className = "bc-noise";
-          const wordSeed = blockIdx*1000 + wi;
+          const chunkSeed = blockIdx*1000 + ci;
 
           for(let c = 0; c < BC_COLS * BC_ROWS; c++){
+              const seed = chunkSeed*100 + c;
               const cell = document.createElement("i");
-              const seed = wordSeed*100 + c;
               const op = 0.35 + tpSeededRandom(seed + 0.2) * 0.6;
-              const nd  = tpSeededRandom(seed + 0.4) * 0.22;   // stagger going away
-              const nd2 = tpSeededRandom(seed + 0.6) * 0.22;   // stagger coming back
+              const nd  = tpSeededRandom(seed + 0.4) * 0.22;
+              const nd2 = tpSeededRandom(seed + 0.6) * 0.22;
               cell.style.setProperty("--op", op.toFixed(2));
               cell.style.setProperty("--nd", nd.toFixed(2) + "s");
               cell.style.setProperty("--nd2", nd2.toFixed(2) + "s");
@@ -572,17 +594,24 @@
 
           wrap.appendChild(label);
           wrap.appendChild(noise);
-
-          let revealTimer = null;
-          wrap.addEventListener("mouseenter", ()=>{
-              wrap.classList.add("revealed");
-              clearTimeout(revealTimer);
-              revealTimer = setTimeout(()=> wrap.classList.remove("revealed"), REVEAL_MS);
-          });
-
           block.appendChild(wrap);
-          block.appendChild(document.createTextNode(" "));
+          return wrap;
       });
+
+      function revealItem(ci){
+          const item = items[ci];
+          item.classList.add("visible", "current");
+          if(ci < items.length - 1){
+              item.addEventListener("click", ()=>{
+                  if(item.dataset.used) return;
+                  item.dataset.used = "1";
+                  item.classList.remove("current");
+                  revealItem(ci + 1);
+              });
+          }
+      }
+
+      if(items.length) revealItem(0);
   }
 
   // 03 Anti Type — a plain text-file panel where the description types
