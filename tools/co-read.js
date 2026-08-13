@@ -726,48 +726,61 @@ function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
 }
 
 // ── initial upload ────────────────────────────────────────
+// shared by the file-picker/drop path (which resolves to a data URL) and
+// the gallery path (which just points at a static file under
+// tools/images/Reading Loop/) -- both just need an <img> and a src usable
+// as the SVG background's xlink:href.
+function applyLoadedImage(img, srcForSvg, displayName) {
+  S.originalImg = img;
+  S.W = img.naturalWidth;
+  S.H = img.naturalHeight;
+  S.timeline = [];
+  S.currentIdx = -1;
+  S.selectedGroup = null;
+  S.selectedGroups = [];
+  S.editMode = true;
+  document.getElementById('fname').textContent = displayName;
+  document.getElementById('drop').classList.add('gone');
+  fitStage();
+
+  svgDoc.innerHTML = '';
+  const bg = document.createElementNS(SVG_NS, 'rect');
+  bg.setAttribute('width', S.W); bg.setAttribute('height', S.H);
+  bg.setAttribute('fill', '#ffffff');
+  svgDoc.appendChild(bg);
+  const imgEl = document.createElementNS(SVG_NS, 'image');
+  imgEl.setAttributeNS('http://www.w3.org/1999/xlink', 'href', srcForSvg);
+  imgEl.setAttribute('width', S.W); imgEl.setAttribute('height', S.H);
+  svgDoc.appendChild(imgEl);
+
+  document.getElementById('edit-panel').classList.remove('show');
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('btn-loop').disabled = true;
+  document.getElementById('btn-reread').disabled = true;
+  document.getElementById('btn-show-origin').disabled = true;
+  document.getElementById('btn-show-current').disabled = true;
+  document.getElementById('btn-svg').disabled = true;
+  document.getElementById('btn-png').disabled = true;
+  document.body.classList.remove('stage-results');
+  updateTimelineUI();
+  updateStats();
+}
+
 function loadImage(file) {
   const reader = new FileReader();
   reader.onload = e => {
     const img = new Image();
-    img.onload = () => {
-      S.originalImg = img;
-      S.W = img.naturalWidth;
-      S.H = img.naturalHeight;
-      S.timeline = [];
-      S.currentIdx = -1;
-      S.selectedGroup = null;
-      S.selectedGroups = [];
-      S.editMode = true;
-      document.getElementById('fname').textContent = file.name;
-      document.getElementById('drop').classList.add('gone');
-      fitStage();
-
-      svgDoc.innerHTML = '';
-      const bg = document.createElementNS(SVG_NS, 'rect');
-      bg.setAttribute('width', S.W); bg.setAttribute('height', S.H);
-      bg.setAttribute('fill', '#ffffff');
-      svgDoc.appendChild(bg);
-      const imgEl = document.createElementNS(SVG_NS, 'image');
-      imgEl.setAttributeNS('http://www.w3.org/1999/xlink', 'href', e.target.result);
-      imgEl.setAttribute('width', S.W); imgEl.setAttribute('height', S.H);
-      svgDoc.appendChild(imgEl);
-
-      document.getElementById('edit-panel').classList.remove('show');
-      document.getElementById('btn-run').disabled = false;
-      document.getElementById('btn-loop').disabled = true;
-      document.getElementById('btn-reread').disabled = true;
-      document.getElementById('btn-show-origin').disabled = true;
-      document.getElementById('btn-show-current').disabled = true;
-      document.getElementById('btn-svg').disabled = true;
-      document.getElementById('btn-png').disabled = true;
-      document.body.classList.remove('stage-results');
-      updateTimelineUI();
-      updateStats();
-    };
+    img.onload = () => applyLoadedImage(img, e.target.result, file.name);
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+function loadImageFromURL(url, displayName) {
+  const img = new Image();
+  img.onload = () => applyLoadedImage(img, url, displayName);
+  img.onerror = () => alert('Could not load ' + displayName);
+  img.src = url;
 }
 
 document.getElementById('btn-import').addEventListener('click', () => {
@@ -786,6 +799,52 @@ dropEl.addEventListener('drop', e => {
   e.preventDefault();
   dropEl.classList.remove('drag');
   if (e.dataTransfer.files[0]) loadImage(e.dataTransfer.files[0]);
+});
+
+// ── gallery: pick from a curated folder instead of the OS file picker ──
+// tools/images/Reading Loop/manifest.json lists the filenames currently
+// in that folder -- drop more images in there and re-run the small
+// manifest generator (or just add the filename to the JSON by hand) to
+// make them show up here.
+const GALLERY_DIR = 'images/Reading Loop';
+let galleryLoaded = false;
+
+function openGallery() {
+  document.getElementById('gallery-overlay').classList.add('show');
+  if (galleryLoaded) return;
+  const grid = document.getElementById('gallery-grid');
+  fetch(GALLERY_DIR + '/manifest.json')
+    .then(r => r.json())
+    .then(names => {
+      galleryLoaded = true;
+      if (!names.length) {
+        grid.innerHTML = '<div class="gallery-empty">no images in ' + GALLERY_DIR + '</div>';
+        return;
+      }
+      names.forEach(name => {
+        const url = GALLERY_DIR + '/' + encodeURIComponent(name);
+        const thumb = document.createElement('div');
+        thumb.className = 'gallery-thumb';
+        thumb.style.backgroundImage = `url("${url}")`;
+        thumb.title = name;
+        thumb.addEventListener('click', () => {
+          loadImageFromURL(url, name);
+          document.getElementById('gallery-overlay').classList.remove('show');
+        });
+        grid.appendChild(thumb);
+      });
+    })
+    .catch(() => {
+      grid.innerHTML = '<div class="gallery-empty">could not load the image list</div>';
+    });
+}
+
+document.getElementById('btn-gallery').addEventListener('click', openGallery);
+document.getElementById('btn-gallery-close').addEventListener('click', () => {
+  document.getElementById('gallery-overlay').classList.remove('show');
+});
+document.getElementById('gallery-overlay').addEventListener('click', e => {
+  if (e.target.id === 'gallery-overlay') e.target.classList.remove('show');
 });
 
 // ── first read: original photo → OCR → groups → state 0 ────

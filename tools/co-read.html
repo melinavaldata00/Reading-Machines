@@ -299,6 +299,36 @@ footer-note {
 .field-table td:last-child{ color: var(--text-dim); }
 #guide-actions{ display: flex; margin-top: 18px; border-top: 1px solid var(--text-faint); padding-top: 16px; }
 #guide-actions .b{ flex: 1; text-align: center; }
+
+#gallery-overlay{
+  display: none; position: fixed; inset: 0;
+  background: rgba(31,19,13,.55); z-index: 90;
+  align-items: center; justify-content: center;
+}
+#gallery-overlay.show{ display: flex; }
+#gallery-modal{
+  background: var(--bg); border: 1px solid var(--text);
+  width: min(640px, 92vw); max-height: 84vh; overflow-y: auto;
+  padding: 22px 26px;
+}
+#gallery-modal h2{
+  font-family: "ABC Gaisyr", monospace; font-size: 15px;
+  letter-spacing: .04em; font-weight: 400; margin-bottom: 4px;
+}
+#gallery-modal .gallery-hint{ font-size: 11px; color: var(--text-dim); margin-bottom: 16px; }
+.gallery-grid{
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+.gallery-thumb{
+  aspect-ratio: 1; border: 1px solid var(--text-faint); cursor: pointer;
+  background: var(--text-faint) center/cover no-repeat; overflow: hidden;
+  transition: border-color .15s;
+}
+.gallery-thumb:hover{ border-color: var(--text); }
+.gallery-empty{ font-size: 12px; color: var(--text-dim); }
+#gallery-close{ display: flex; margin-top: 18px; border-top: 1px solid var(--text-faint); padding-top: 16px; }
+#gallery-close .b{ flex: 1; text-align: center; }
 </style>
 </head>
 <body>
@@ -306,10 +336,20 @@ footer-note {
 <div id="topbar">
   <span id="topbar-title"><b>READING LOOP</b> — <span id="fname">no file</span></span>
   <button class="b" id="btn-import">import</button>
+  <button class="b" id="btn-gallery">gallery</button>
   <button class="b go" id="btn-run" disabled>read</button>
   <input type="file" accept="image/*" id="file-input" style="display:none">
   <div style="flex:1"></div>
   <button class="b go" id="btn-reread" disabled>re-read</button>
+</div>
+
+<div id="gallery-overlay">
+  <div id="gallery-modal">
+    <h2>choose an image</h2>
+    <div class="gallery-hint">from tools/images/Reading Loop</div>
+    <div class="gallery-grid" id="gallery-grid"></div>
+    <div id="gallery-close"><button class="b" id="btn-gallery-close">close</button></div>
+  </div>
 </div>
 
 <div id="guide-overlay">
