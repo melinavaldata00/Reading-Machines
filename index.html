@@ -978,6 +978,9 @@
   function jumpTo(idx){
       idx = Math.max(0, Math.min(allSections.length - 1, idx));
       sectionIndex = idx;
+      if(idx === 0 && typeof window.resetMarqueeRead === "function"){
+          window.resetMarqueeRead();
+      }
       // set in-presenter synchronously, the moment we decide to jump --
       // don't wait for the IntersectionObserver to confirm the scroll
       // landed, since with scroll-snap + smooth scrollIntoView fighting
@@ -1003,11 +1006,16 @@
       e.preventDefault();
       if(jumping) return;
       if(sectionIndex === 0){
-          // the landing's text is always scrollable, in both directions,
-          // for as long as the visitor wants to keep reading it -- scroll
-          // never jumps away from here on its own. Moving on to OCR
-          // Skeleton happens by clicking the text itself (wired in
-          // script.js), same as it always has.
+          // the landing's text is freely scrollable, in both directions,
+          // for as long as the visitor wants to read/re-read it -- but
+          // once they've scrolled all the way through it once themselves
+          // (not just idle auto-play drifting through it), continuing to
+          // scroll down moves on to OCR Skeleton instead of looping the
+          // text again. Clicking the text still jumps immediately too.
+          if(e.deltaY > 10 && typeof window.hasReadMarquee === "function" && window.hasReadMarquee()){
+              jumpTo(sectionIndex + 1);
+              return;
+          }
           if(typeof window.nudgeMarquee === "function"){
               window.nudgeMarquee(e.deltaY * 1.6);
           }

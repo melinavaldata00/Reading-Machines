@@ -249,18 +249,37 @@ function wrapScroll(){
 // -- jumping the marquee forward by a chunk of text -- instead of the
 // gesture doing nothing while the auto-play's comparatively slow,
 // continuous drift is the only thing moving it.
+// counts how many times the VISITOR's own scrolling (as opposed to the
+// ambient auto-play drift, which calls wrapScroll() on every animation
+// frame regardless of input) has pushed the text past its end and back
+// to the top -- i.e. how many full read-throughs they've actually
+// scrolled themselves. Kept separate from auto-play so idle time alone
+// never counts as "read": only deliberate scrolling does.
+let userReadThroughs = 0;
+
 window.nudgeMarquee = function(amount){
     humanY -= amount;
     machineY -= amount;
+    const limit = contentHeight + viewportHeight;
+    if(Math.abs(humanY) >= limit) userReadThroughs++;
     wrapScroll();
 };
 
-// exposed so index.html's wheel handler knows whether the marquee is
-// still on its first text state (STATE 01) -- scroll only scrubs the
-// text during that state; once it's moved on, scroll goes back to
-// jumping between sections like everywhere else on the site.
-window.getMarqueeState = function(){
-    return currentState;
+// exposed so index.html's wheel handler knows once the visitor has
+// scrolled all the way through the text themselves -- from that point,
+// scrolling further moves on to OCR Skeleton instead of looping the
+// text again. Doesn't reset on its own: once read, always considered
+// read for the rest of this visit to the landing.
+window.hasReadMarquee = function(){
+    return userReadThroughs >= 1;
+};
+
+// called by index.html's jumpTo() whenever the visitor lands back on the
+// landing (e.g. scrolling up from a tool page) -- gives them the full
+// "scroll to read, scroll past the end to move on" experience again
+// instead of instantly bouncing them onward from a previous visit.
+window.resetMarqueeRead = function(){
+    userReadThroughs = 0;
 };
 
 /* ------------------------------ */
