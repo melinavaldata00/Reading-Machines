@@ -539,9 +539,23 @@ async function runOCR(imageSource, onProgress) {
       text: w.text, conf: w.confidence,
       lineNum: (w.line_num !== undefined ? w.line_num : Math.floor(w.bbox.y0 / 30)),
     }))
+    // Drop weak detections here, before they ever become a group — on a
+    // busy graphic poster (as opposed to a plain scanned document),
+    // Tesseract throws off hundreds of near-zero-confidence fragments
+    // from decorative elements, textures, etc. Previously every one of
+    // those still became a group and, since it fell under
+    // SHAPE_THRESHOLD, got rendered as a generic geometric placeholder —
+    // which is what turned the whole page into confetti. Cutting them
+    // here means fewer, more trustworthy shapes overall, instead of one
+    // shape per scrap the OCR barely registered.
+    // A short 1-2 char result is disproportionately likely to be OCR
+    // noise (stray marks misread as "l", ".", "-", etc.), so those need
+    // a notably higher bar than a real multi-letter word does.
     .filter(b => {
       const txt = b.text.trim();
-      return b.w > 8 && b.h > 8 && txt.length >= 1;
+      if (b.w <= 8 || b.h <= 8 || txt.length < 1) return false;
+      const MIN_CONF = txt.length <= 2 ? 55 : 30;
+      return b.conf >= MIN_CONF;
     });
 }
 
