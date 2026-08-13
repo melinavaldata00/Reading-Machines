@@ -69,6 +69,11 @@
       grid-template-columns:1fr 1fr;
       gap:48px;
     }
+    /* only the machine (right) column stays, moved into the left track -- */
+    /* the human column is hidden outright rather than removed from the    */
+    /* DOM, since script.js still references #human directly throughout.  */
+    .landing-panels .panel:first-of-type{ display:none; }
+    .landing-panels .panel:last-of-type{ grid-column:1; }
 
     /* ════════════════════════════════════════════════════════════ */
     /* PRESENTER — the 4 tool pages, appended below the landing as    */
