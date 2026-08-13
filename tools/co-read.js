@@ -59,7 +59,7 @@ const SHAPE_THRESHOLD = 8;
 // text hard to read. Below this (but still above SHAPE_THRESHOLD) is
 // where the textured pattern now actually means something: text the
 // machine is genuinely unsure about.
-const LEGIBLE_THRESHOLD = 60;
+const LEGIBLE_THRESHOLD = 78;
 
 function updateStats() {
   const st = S.timeline[S.currentIdx];
