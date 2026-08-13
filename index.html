@@ -826,21 +826,20 @@
   }, { threshold: [0.5] });
   pages.forEach(p=> pageObserver.observe(p));
 
-  // fixed presenter chrome (index-bar, next, go-to-tool) stays hidden
-  // while on the landing, fades in once you've scrolled off it -- also
-  // used by style.css to fade out the landing's own STATE/column-toggle
-  // chrome in reverse. Watches .landing itself (a real, full-height
-  // element) via isIntersecting rather than a zero-height sentinel div
-  // compared against boundingClientRect -- the sentinel had no area, so
-  // browsers weren't reliably re-firing the callback on the way back up,
-  // leaving in-presenter stuck on once you'd scrolled past it once.
+  // fixed presenter chrome (index-bar, next, go-to-tool, documentation)
+  // toggles based on whether the landing is on screen. This used to be
+  // driven by its own IntersectionObserver watching .landing -- but that
+  // observer fires asynchronously, on its own schedule, and would
+  // sometimes land AFTER jumpTo() had already set the correct state
+  // synchronously for a jump, clobbering it back to the wrong value a
+  // moment later (this was the actual cause of "documentation still
+  // showing after scrolling from Blind Contour back up to OCR Skeleton":
+  // two separate mechanisms fighting over the same body.in-presenter
+  // class). jumpTo() (below) is now the single synchronous source of
+  // truth for every jump the site can trigger (wheel, NEXT, index dots);
+  // syncScrollState() below covers the one thing jumpTo() can't -- the
+  // page loading already scrolled to some position on its own.
   const landingEl = document.querySelector(".landing");
-  const presenterObserver = new IntersectionObserver((entries)=>{
-      entries.forEach(entry=>{
-          document.body.classList.toggle("in-presenter", !entry.isIntersecting);
-      });
-  }, { threshold: [0] });
-  presenterObserver.observe(landingEl);
 
   /* ------------------------------ */
   /* SECTION-JUMP SCROLL — the whole page (landing, then the 4 tool        */
