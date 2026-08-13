@@ -903,6 +903,16 @@
   let jumping = false;
   let jumpCooldown = null;
 
+  // the landing gets one "free" scroll gesture before it jumps anywhere --
+  // its marquee keeps auto-playing on its own regardless of real scroll,
+  // so the first wheel tick just gives the text more time to keep
+  // revealing itself instead of whisking the visitor straight to OCR
+  // Skeleton before they've read anything. The second gesture jumps, same
+  // as every other section. Resets whenever landing is reached again, so
+  // scrolling back up to it and trying again always gives that first
+  // gesture back.
+  let landingPrimed = false;
+
   // explicit initial sync -- if the page loads already scrolled down
   // (e.g. the browser restoring your previous scroll position on a
   // refresh), don't rely solely on the observers' first async callback
@@ -929,6 +939,7 @@
   function jumpTo(idx){
       idx = Math.max(0, Math.min(allSections.length - 1, idx));
       sectionIndex = idx;
+      if(idx === 0) landingPrimed = false;
       // set in-presenter synchronously, the moment we decide to jump --
       // don't wait for the IntersectionObserver to confirm the scroll
       // landed, since with scroll-snap + smooth scrollIntoView fighting
@@ -953,8 +964,15 @@
   function handleWheel(e){
       e.preventDefault();
       if(jumping) return;
-      if(e.deltaY > 10) jumpTo(sectionIndex + 1);
-      else if(e.deltaY < -10) jumpTo(sectionIndex - 1);
+      if(e.deltaY > 10){
+          if(sectionIndex === 0 && !landingPrimed){
+              landingPrimed = true; // consume this one, stay put -- see comment above
+              return;
+          }
+          jumpTo(sectionIndex + 1);
+      } else if(e.deltaY < -10){
+          jumpTo(sectionIndex - 1);
+      }
   }
 
   window.addEventListener("wheel", handleWheel, { passive:false });
