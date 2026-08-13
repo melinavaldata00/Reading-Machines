@@ -4,19 +4,26 @@
 /* ------------------------------ */
 
 const humanLines = [
-    "Reading is one of those things we rarely stop",
-    "to question.", "We simply do it. We read books, signs,",
-    "interfaces, instructions, messages.",
+    "Reading Machines is a graphic investigation",
+    "into the status of writing in relation to",
+    "computational systems, exploring what happens",
+    "to text when it becomes subject to machine",
+    "reading, processing, and recognition —",
+    "and what this reveals about the nature of",
+    "writing and reading as human processes.",
     "",
-    "We read so often that reading itself", "almost disappears.",
-    "It becomes invisible.",
+    "The research examines how computational tools",
+    "confront graphic artefacts — pages, layouts,",
+    "typographies, visual hierarchies — elements",
+    "that humans have always used to create meaning —",
+    "reducing them to coordinates, segmentations,",
+    "and data, flattening much of the designed",
+    "object's qualities in the process.",
     "",
-    "Nowadays, computational systems read", "enormous amounts of text.",
-    "They classify it, extract it, transform it", "and generate new content from it.", "We rely on these processes constantly, yet we",
-    "rarely stop to question what reading actually means for a machine, or how different that", "process is from our own.",
-    "",
-    "Reading Machines is an attempt to slow that", "process down.",
-    "To look at machine reading not as a hidden", "technical operation, but as something that can be observed, questioned and, ultimately,", "designed with.",
+    "What if, rather than treating this as a",
+    "limitation, we could implement computational",
+    "reading within design practice to generate",
+    "new perceptions of text?",
 ];
 
 // Machine column now reads the exact same words as the human column —

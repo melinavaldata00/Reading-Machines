@@ -999,19 +999,15 @@
       jumpCooldown = setTimeout(()=>{ jumping = false; }, 900);
   }
 
-  function onLandingFirstState(){
-      return sectionIndex === 0 &&
-          typeof window.getMarqueeState === "function" &&
-          window.getMarqueeState() === 1;
-  }
-
   function handleWheel(e){
       e.preventDefault();
       if(jumping) return;
-      if(onLandingFirstState()){
-          // fluid, direct scrub -- the text moves proportionally with the
-          // wheel itself, not in fixed chunks, so it tracks the gesture
-          // the way a normal scroll would.
+      if(sectionIndex === 0){
+          // the landing's text is always scrollable, in both directions,
+          // for as long as the visitor wants to keep reading it -- scroll
+          // never jumps away from here on its own. Moving on to OCR
+          // Skeleton happens by clicking the text itself (wired in
+          // script.js), same as it always has.
           if(typeof window.nudgeMarquee === "function"){
               window.nudgeMarquee(e.deltaY * 1.6);
           }
