@@ -130,7 +130,15 @@
     .tool-page.in-view .tp-head{ animation:tpFadeUp .5s ease both; }
 
     /* ---- 01 OCR Skeleton ---- */
-    .tool-page.tp-float{ --tp-bg:#ffffff; padding:0; overflow:hidden; justify-content:flex-start; background:var(--tp-bg); }
+    .tool-page.tp-float{
+      --tp-bg:#3fff00; --tp-text:#1f130d; --tp-text-dim:rgba(31,19,13,.45); --tp-text-faint:rgba(31,19,13,.22);
+      padding:0; overflow:hidden; justify-content:flex-start; background:var(--tp-bg);
+    }
+    /* Anti Type shares the .tp-float base but keeps its own white page --   */
+    /* pinned explicitly so it doesn't inherit OCR Skeleton's green above.   */
+    .tool-page.tp-float.tp-anti-write{
+      --tp-bg:#ffffff; --tp-text:#1f130d; --tp-text-dim:rgba(31,19,13,.45); --tp-text-faint:rgba(31,19,13,.22);
+    }
     .tp-float .tp-head{ position:absolute; top:40px; left:24px; z-index:2; margin:0; }
     .tp-float .tp-title{
       display:block; font-family:"ABC Favorit", Helvetica, Arial, sans-serif; font-size:clamp(48px, 9vw, 120px);
