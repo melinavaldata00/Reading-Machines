@@ -294,11 +294,20 @@ function renderGroupVisual(g) {
   gEl.setAttribute('class', 'outline-group');
   gEl.dataset.id = g.id;
   const cx = g.cx, cy = g.cy;
+  // skewX/skewY give each word a fake-perspective tilt (like it's being
+  // viewed at an angle) independent of rotation — applied between rotate
+  // and scale so the slant reads relative to the word's own upright axis.
   gEl.setAttribute('transform',
-    `translate(${cx} ${cy}) rotate(${g.rotation}) scale(${g.scale / 100}) translate(${-cx} ${-cy})`);
+    `translate(${cx} ${cy}) rotate(${g.rotation}) skewX(${g.skewX || 0}) skewY(${g.skewY || 0}) scale(${g.scale / 100}) translate(${-cx} ${-cy})`);
 
   const conf = effectiveConf(g);
   const greyOf = pct => Math.round(255 - (pct / 100) * 180);
+  // how legible this word's texture reads scales with its (machine or
+  // manually overridden) confidence -- previously every word between the
+  // shape-fallback threshold and 100% got the exact same fixed opacity, so
+  // a 95%-confidence word looked just as faint/sparse as a 10%-confidence
+  // one. 0 at the shape-fallback edge, 1 at high confidence.
+  const legibility = Math.max(0, Math.min(1, (conf - SHAPE_THRESHOLD) / (95 - SHAPE_THRESHOLD)));
 
   if (g.textOverridden) {
     const t = document.createElementNS(SVG_NS, 'text');
@@ -358,8 +367,11 @@ function renderGroupVisual(g) {
       p.style.fill = g.customColor || '#000000';
       // raised from the old 0.28/0.6 floor — the silhouette is what
       // actually reads as a letterform, so it needs to carry more
-      // weight than the sparse edge texture on top of it.
-      p.style.fillOpacity = Math.max(0.42, g.fill / 100) * 0.72 * opacity;
+      // weight than the sparse edge texture on top of it. Floor now
+      // ramps with legibility too: a high-confidence word should read
+      // clearly, not sit at the same faint opacity as a barely-read one.
+      const silhouetteFloor = 0.30 + legibility * 0.55;
+      p.style.fillOpacity = Math.max(silhouetteFloor, g.fill / 100) * opacity;
       p.style.stroke = 'none';
       gEl.appendChild(p);
     }
@@ -376,9 +388,10 @@ function renderGroupVisual(g) {
       // outline), and the stroke itself is toned down rather than full
       // opacity by default.
       p.style.fill = g.customColor || '#000000';
-      p.style.fillOpacity = Math.max(0.16, g.fill / 100) * opacity;
+      const texFloor = 0.14 + legibility * 0.30;
+      p.style.fillOpacity = Math.max(texFloor, g.fill / 100) * opacity;
       p.style.stroke = strokeColor;
-      p.style.strokeOpacity = 0.5 * opacity;
+      p.style.strokeOpacity = (0.35 + legibility * 0.4) * opacity;
       p.style.strokeWidth = '0.75';
       gEl.appendChild(p);
     }
@@ -667,7 +680,6 @@ function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
     if (best && best.manualConf !== null && best.manualConf !== undefined) {
       extraDegradation = Math.max(0, (60 - best.manualConf) / 20);
     }
-    const degradation = complexity + extraDegradation;
 
     // smooth confidence across iterations: Tesseract's confidence for the
     // exact same rendered text varies slightly run to run, which used to
@@ -679,6 +691,15 @@ function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
     if (best && (best.manualConf === null || best.manualConf === undefined)) {
       conf = best.conf * 0.6 + b.conf * 0.4;
     }
+
+    // a confidently-read word should extract as a denser, cleaner dot
+    // pattern than a shaky one — previously degradation only tracked pixel
+    // complexity, so an easily machine-readable word could still come out
+    // sparse and hard to read just because its letterforms were visually
+    // busy. High conf trims degradation (denser dots, less dropout); low
+    // conf leaves it untouched.
+    const confRelief = Math.max(0, (conf - 50) / 25);
+    const degradation = Math.max(0, complexity + extraDegradation - confRelief);
 
     const paths     = extractContours(imgData, b.x, b.y, b.w, b.h, srcCanvas.width, degradation, localThreshold);
     const fillPaths = extractSilhouette(imgData, b.x, b.y, b.w, b.h, srcCanvas.width, degradation, localThreshold);
@@ -703,6 +724,8 @@ function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
       fillPaths,
       scale: confScale,
       rotation: 0,
+      skewX: 0,
+      skewY: 0,
       customColor: null,
       customOpacity: 100,
       fontFamily: 'ABC Gaisyr',
@@ -1033,6 +1056,8 @@ function populateEditPanel(g) {
   document.getElementById('ep-color').value    = g.customColor || '#000000';
   document.getElementById('ep-opacity').value  = g.customOpacity !== undefined ? g.customOpacity : 100;
   document.getElementById('ep-rotation').value = g.rotation;
+  document.getElementById('ep-skew-x').value   = g.skewX || 0;
+  document.getElementById('ep-skew-y').value   = g.skewY || 0;
   document.getElementById('ep-fill').value     = g.fill;
   document.getElementById('ep-conf').value     = Math.round(effectiveConf(g));
   document.getElementById('ep-disperse').value = g.disperseAmount || 0;
@@ -1182,6 +1207,19 @@ document.getElementById('ep-rotation').addEventListener('input', e => {
   S.selectedGroups.forEach(g => { g.rotation = v; });
   draw();
 });
+// perspective — fake-3D tilt via 2D skew, independent of rotation
+document.getElementById('ep-skew-x').addEventListener('input', e => {
+  if (!S.selectedGroup) return;
+  const v = parseInt(e.target.value);
+  S.selectedGroups.forEach(g => { g.skewX = v; });
+  draw();
+});
+document.getElementById('ep-skew-y').addEventListener('input', e => {
+  if (!S.selectedGroup) return;
+  const v = parseInt(e.target.value);
+  S.selectedGroups.forEach(g => { g.skewY = v; });
+  draw();
+});
 document.getElementById('ep-fill').addEventListener('input', e => {
   if (!S.selectedGroup) return;
   const v = parseInt(e.target.value);
@@ -1272,6 +1310,67 @@ document.getElementById('ep-disperse').addEventListener('input', e => {
   S.selectedGroups.forEach(g => { g.disperseAmount = v; });
   draw();
 });
+
+// multiply — tiles copies of each selected word across the whole canvas,
+// in a loose grid (mild per-cell jitter + rotation so it doesn't read as
+// a rigid, mechanical repeat). Each copy is its own independent group —
+// draggable, editable, deletable — not a display trick, so anything already
+// possible on a single word (skew, disperse, "show as text"...) also works
+// on any one of the copies afterward.
+function multiplySelection() {
+  if (!S.selectedGroups.length) return;
+  const st = S.timeline[S.currentIdx];
+  if (!st) return;
+
+  const margin = 16;
+  const usableW = Math.max(1, S.W - margin * 2);
+  const usableH = Math.max(1, S.H - margin * 2);
+  const added = [];
+
+  S.selectedGroups.forEach(orig => {
+    const ow = orig.w * (orig.scale / 100);
+    const oh = orig.h * (orig.scale / 100);
+    const stepX = Math.max(ow + 20, 36);
+    const stepY = Math.max(oh + 16, 26);
+    const cols = Math.max(1, Math.floor(usableW / stepX));
+    const rows = Math.max(1, Math.floor(usableH / stepY));
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const jx = (Math.random() - 0.5) * stepX * 0.2;
+        const jy = (Math.random() - 0.5) * stepY * 0.2;
+        const x = margin + c * stepX + jx;
+        const y = margin + r * stepY + jy;
+        // skip the cell that would land right on top of the original
+        if (Math.abs(x - orig.x) < stepX * 0.5 && Math.abs(y - orig.y) < stepY * 0.5) continue;
+
+        const clone = {
+          ...orig,
+          id: S.nextGroupId++,
+          x, y,
+          cx: x + orig.w / 2,
+          cy: y + orig.h / 2,
+          // own flow/original position, so this copy doesn't snap back to
+          // the source word's spot the next time the layout toggle is used
+          flowX: x, flowY: y,
+          originalX: x, originalY: y,
+          rotation: (orig.rotation || 0) + (Math.random() - 0.5) * 14,
+        };
+        st.groups.push(clone);
+        added.push(clone);
+      }
+    }
+  });
+
+  if (added.length) {
+    S.selectedGroups = added;
+    S.selectedGroup = added[added.length - 1];
+    populateEditPanel(S.selectedGroup);
+  }
+  updateStats();
+  draw();
+}
+document.getElementById('ep-multiply').addEventListener('click', multiplySelection);
 
 document.getElementById('ep-front').addEventListener('click', () => {
   if (!S.selectedGroups.length) return;

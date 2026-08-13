@@ -378,6 +378,8 @@ footer-note {
       <tr><td>show as text</td><td>renders the word as real typeset text (pick a font) instead of the dot pattern — useful for actually arranging a layout</td></tr>
       <tr><td>disperse</td><td>scatters the word's own dots apart from within, rather than moving the word</td></tr>
       <tr><td>align left/center/right</td><td>lines up the x position of every selected word</td></tr>
+      <tr><td>persp. x / y</td><td>tilts the word on a fake-perspective slant, independent of rotation</td></tr>
+      <tr><td>multiply across canvas</td><td>tiles independent, individually-editable copies of the selected word(s) across the whole page</td></tr>
     </table>
     <div id="guide-actions">
       <button class="b" id="btn-guide-close">close</button>
@@ -415,6 +417,8 @@ footer-note {
         </div>
         <div class="slider-row"><span class="slider-label">scale</span><input type="range" id="ep-scale" min="20" max="300" value="100"></div>
         <div class="slider-row" style="margin-top:6px"><span class="slider-label">rotation</span><input type="range" id="ep-rotation" min="-180" max="180" value="0"></div>
+        <div class="slider-row" style="margin-top:6px"><span class="slider-label">persp. x</span><input type="range" id="ep-skew-x" min="-60" max="60" value="0"></div>
+        <div class="slider-row" style="margin-top:6px"><span class="slider-label">persp. y</span><input type="range" id="ep-skew-y" min="-60" max="60" value="0"></div>
         <div class="slider-row" style="margin-top:6px"><span class="slider-label">fill</span><input type="range" id="ep-fill" min="0" max="100" value="0"></div>
         <div class="slider-row" style="margin-top:6px"><span class="slider-label">conf.</span><input type="range" id="ep-conf" min="0" max="100" value="50"></div>
         <div class="slider-row" style="margin-top:6px">
@@ -434,6 +438,9 @@ footer-note {
         </div>
         <div class="slider-row"><span class="slider-label">disperse</span><input type="range" id="ep-disperse" min="0" max="100" value="0"></div>
 
+        <div class="ep-row" style="margin-top:10px">
+          <button class="b" id="ep-multiply" style="flex:1;font-size:10px">multiply across canvas</button>
+        </div>
         <div class="ep-row" style="margin-top:10px">
           <button class="b" id="ep-front">forward</button>
           <button class="b" id="ep-back">back</button>
