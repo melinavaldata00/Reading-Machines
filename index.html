@@ -159,10 +159,16 @@
     }
     .tp-head{ display:flex; align-items:baseline; gap:16px; margin-bottom:34px; }
     .tp-num{ font-family:"ABC Gaisyr", monospace; font-size:13px; letter-spacing:.15em; color:var(--tp-text-dim); }
-    .tp-title{ font-family:"ABC Gaisyr", monospace; font-size:30px; letter-spacing:.03em; font-weight:400; }
+    .tp-title{ font-family:"ABC Gaisyr", monospace; font-size:30px; letter-spacing:.03em; font-weight:400; transition:font-size .7s ease; }
     .tp-text{ font-family:"ABC Favorit", monospace; font-size:19px; line-height:1.55; }
     @keyframes tpFadeUp{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
     .tool-page.in-view .tp-head{ animation:tpFadeUp .5s ease both; }
+
+    /* title starts big on arrival, then settles down to a smaller size    */
+    /* after 4s (title-shrunk added by setCurrentPage's timer below) --    */
+    /* same transition applies to every tool-page variant since they all   */
+    /* only override font-size, not transition, on .tp-title.              */
+    .tool-page.title-shrunk .tp-title{ font-size:30px; }
 
     /* ---- 01 OCR Skeleton ---- */
     .tool-page.tp-float{
@@ -926,6 +932,13 @@
   const indexBtns = Array.from(document.querySelectorAll(".index-num"));
   let currentPage = 0;
 
+  // title-shrink timer -- tracked separately from currentPage/prevPage
+  // (which start out equal, at 0, before any page has genuinely become
+  // current yet) so the very first real arrival on page 0 still kicks
+  // the timer off, not just later transitions between pages.
+  let shrinkManagedPage = -1;
+  let titleShrinkTimer = null;
+
   function setCurrentPage(idx){
       const prevPage = currentPage;
       currentPage = idx;
@@ -938,6 +951,14 @@
       if(prevPage !== currentPage){
           if(pageHooks[prevPage]) pageHooks[prevPage].stop();
           if(pageHooks[currentPage]) pageHooks[currentPage].start();
+      }
+      if(shrinkManagedPage !== idx){
+          shrinkManagedPage = idx;
+          clearTimeout(titleShrinkTimer);
+          pages[idx].classList.remove("title-shrunk");
+          titleShrinkTimer = setTimeout(()=>{
+              pages[idx].classList.add("title-shrunk");
+          }, 4000);
       }
   }
 
