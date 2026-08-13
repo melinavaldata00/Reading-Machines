@@ -125,53 +125,16 @@ renderLines(humanContent, humanLines, false);
 renderLines(machineContent, machineLines, true);
 
 /* ------------------------------ */
-/* UI — toggle sottili per colonna */
+/* UI — state cycler only; the column-toggle dots are gone now that only  */
+/* the machine column is ever shown on the landing (nothing left to       */
+/* toggle between).                                                       */
 /* ------------------------------ */
-
-const humanToggle = document.createElement("button");
-humanToggle.className = "col-toggle on toggle-left";
-document.body.appendChild(humanToggle);
-
-const machineToggle = document.createElement("button");
-machineToggle.className = "col-toggle on toggle-right";
-document.body.appendChild(machineToggle);
 
 const state = document.createElement("div");
 state.className = "state";
 state.innerHTML = "STATE 01";
 state.style.cursor = "pointer";
 document.body.appendChild(state);
-
-let humanOn = true;
-let machineOn = true;
-
-function updateView(){
-
-    document.body.classList.remove("show-both","show-human","show-machine");
-
-    if(humanOn && machineOn){
-        document.body.classList.add("show-both");
-    } else if(humanOn){
-        document.body.classList.add("show-human");
-    } else if(machineOn){
-        document.body.classList.add("show-machine");
-    }
-
-}
-
-humanToggle.onclick = ()=>{
-    if(humanOn && !machineOn) return; // non spegnere l'ultima colonna attiva
-    humanOn = !humanOn;
-    humanToggle.classList.toggle("on", humanOn);
-    updateView();
-};
-
-machineToggle.onclick = ()=>{
-    if(machineOn && !humanOn) return;
-    machineOn = !machineOn;
-    machineToggle.classList.toggle("on", machineOn);
-    updateView();
-};
 
 document.body.classList.add("show-both","state-1");
 
