@@ -192,12 +192,12 @@
     @keyframes boxFloatUp{ from{ transform:translateY(var(--famp)); } to{ transform:translateY(calc(-1 * var(--famp))); } }
 
     /* ---- 02 Blind Contour — accumulating mosaic of phrase chunks (same    */
-    /* structure as OCR Skeleton's "current vs. already-read" tiles), but    */
-    /* using Blind Contour's own established language for the "already      */
-    /* read" state: covered by a grid of digital static ("discards the      */
-    /* rest as noise", straight from the tool's own text) instead of a      */
-    /* bare outline. The current chunk sits clean/readable; clicking it      */
-    /* permanently covers it with noise and reveals the next chunk clean.   */
+    /* structure as OCR Skeleton's "current vs. already-read" tiles). No     */
+    /* noise-pattern texture anymore -- boxes are just plain outlines. The   */
+    /* current chunk's text appears, then fades back out on its own after   */
+    /* a few seconds (same "peek" idea the old hover version had) --        */
+    /* clicking the box while it's current still advances to the next one   */
+    /* immediately, whether or not the text has already faded.              */
     .tool-page.tp-bc-exaggerate{ padding:0; overflow:hidden; }
     .tp-bc-exaggerate .tp-head{ position:absolute; top:40px; left:24px; z-index:2; margin:0; }
     .tp-bc-exaggerate .tp-title{
@@ -219,19 +219,9 @@
     .bc-word.current:hover{ opacity:.85; }
     .bc-label{
       display:block; font-family:"ABC Favorit", monospace; color:var(--tp-text);
+      opacity:0; transition:opacity .4s ease;
     }
-    .bc-noise{
-      position:absolute; inset:0;
-      display:grid; grid-template-columns:repeat(12, 1fr); grid-template-rows:repeat(5, 1fr);
-      gap:1px; pointer-events:none;
-    }
-    .bc-noise i{
-      display:block; font-style:normal; background:var(--tp-text);
-      opacity:var(--op, .8);
-      transition:opacity .3s ease var(--nd, 0s);
-    }
-    /* current chunk: noise hidden, label reads clean */
-    .bc-word.current .bc-noise i{ opacity:0; transition-delay:var(--nd2, 0s); }
+    .bc-word.showing .bc-label{ opacity:1; }
 
     /* ---- 03 Anti Type ---- */
     .tp-float.tp-anti-write .tp-text{ position:static; inset:auto; }
@@ -538,16 +528,12 @@
       if(boxes.length) revealBox(0);
   }
 
-  // 02 Blind Contour — same accumulating-mosaic structure as OCR Skeleton
-  // (phrase chunks flowing into a flex-wrap grid, one "current" chunk
-  // active at a time), but the "already read" state uses Blind Contour's
-  // own established language instead of a bare outline: a grid of digital
-  // static covers it, a literal read of the tool's own line "discards the
-  // rest as noise". The current chunk reads clean, with the noise hidden;
-  // clicking it permanently drops the noise over it and reveals the next
-  // chunk clean in its place.
-  const BC_COLS = 12, BC_ROWS = 5;
-
+  // 02 Blind Contour — accumulating mosaic of phrase chunks (flex-wrap
+  // grid, one "current" chunk active at a time). Plain outline boxes, no
+  // noise texture; the current chunk's text fades in, sits for a few
+  // seconds, then fades back out on its own -- a peek, not a permanent
+  // reveal. Clicking the current box (whether its text is still showing
+  // or has already faded) immediately advances to the next chunk.
   function wrapAbstractWords(block){
       const text = block.dataset.text.replace(/\s+/g, ' ').trim();
       const blockIdx = wrapCounter++;
@@ -568,7 +554,9 @@
           chunks[chunks.length - 1] += ' ' + last;
       }
 
-      const items = chunks.map((chunk, ci)=>{
+      const PEEK_MS = 3000; // how long the current chunk's text stays visible before fading back out
+
+      const items = chunks.map(chunk=>{
           const wrap = document.createElement("div");
           wrap.className = "bc-word";
 
@@ -576,36 +564,23 @@
           label.className = "bc-label";
           label.textContent = chunk;
 
-          const noise = document.createElement("span");
-          noise.className = "bc-noise";
-          const chunkSeed = blockIdx*1000 + ci;
-
-          for(let c = 0; c < BC_COLS * BC_ROWS; c++){
-              const seed = chunkSeed*100 + c;
-              const cell = document.createElement("i");
-              const op = 0.35 + tpSeededRandom(seed + 0.2) * 0.6;
-              const nd  = tpSeededRandom(seed + 0.4) * 0.22;
-              const nd2 = tpSeededRandom(seed + 0.6) * 0.22;
-              cell.style.setProperty("--op", op.toFixed(2));
-              cell.style.setProperty("--nd", nd.toFixed(2) + "s");
-              cell.style.setProperty("--nd2", nd2.toFixed(2) + "s");
-              noise.appendChild(cell);
-          }
-
           wrap.appendChild(label);
-          wrap.appendChild(noise);
           block.appendChild(wrap);
           return wrap;
       });
 
       function revealItem(ci){
           const item = items[ci];
-          item.classList.add("visible", "current");
+          item.classList.add("visible", "current", "showing");
+
+          const hideTimer = setTimeout(()=> item.classList.remove("showing"), PEEK_MS);
+
           if(ci < items.length - 1){
               item.addEventListener("click", ()=>{
                   if(item.dataset.used) return;
                   item.dataset.used = "1";
-                  item.classList.remove("current");
+                  clearTimeout(hideTimer);
+                  item.classList.remove("current", "showing");
                   revealItem(ci + 1);
               });
           }
