@@ -592,13 +592,15 @@
       return { start, stop };
   }
 
-  // 04 Reading Loop — a growing word-association cascade: one short
-  // PHRASE per row is "selected" (solid box) because it's the real
-  // continuation of the previous selected phrase somewhere in the
-  // source text -- a tiny, literal model of the machine "making a
-  // connection". The rest of the row is filled with other short phrases
-  // pulled at random from the same text, left at a dimmer, unboxed
-  // opacity, standing in for the other paths the system could have
+  // 04 Reading Loop — a growing word-association tree: one short PHRASE
+  // per row is the "trunk" (solid box) because it's the real
+  // continuation of the previous trunk phrase somewhere in the source
+  // text -- a tiny, literal model of the machine "making a connection".
+  // Around each trunk, a few shorter "branch" words sprout to either
+  // side -- not random vocabulary, but words that actually occur near
+  // the trunk's word elsewhere in the text, i.e. the same neighbourhood/
+  // category rather than a synonym -- left at a dimmer, unboxed opacity,
+  // standing in for the other, related paths the system could have
   // taken but didn't. Rows keep growing on a timer, the camera pans
   // down to follow the newest one, and once it's grown enough it clears
   // and starts again -- the loop the tool is named for.
@@ -618,12 +620,28 @@
       const occurrences = {};
       tokens.forEach((t, i)=> (occurrences[t] || (occurrences[t] = [])).push(i));
 
+      // neighbourhood index: every text position within WINDOW tokens of
+      // an occurrence of a word -- the pool a branch is drawn from, so
+      // branches read as "words that show up around this one" (same
+      // rough category/context) rather than a synonym lookup or a fully
+      // random word from anywhere in the text.
+      const WINDOW = 5;
+      const nearby = {};
+      tokens.forEach((t, i)=>{
+          for(let d = -WINDOW; d <= WINDOW; d++){
+              if(d === 0) continue;
+              const j = i + d;
+              if(j < 0 || j >= tokens.length) continue;
+              (nearby[t] || (nearby[t] = [])).push(j);
+          }
+      });
+
       function phraseAt(startIdx, len){
           return tokens.slice(startIdx, startIdx + len).join(' ') || tokens[0];
       }
 
-      // the selected phrase continues from a real occurrence of the
-      // current word -- PHRASE_LEN words long, taken verbatim from the text.
+      // the trunk phrase continues from a real occurrence of the
+      // current word -- a few words long, taken verbatim from the text.
       function pickNextPhrase(word, seed){
           const occ = occurrences[word];
           let startIdx;
@@ -637,12 +655,18 @@
           return phraseAt(startIdx, len);
       }
 
-      // a decoy phrase is just some other random stretch of the same
-      // text -- unrelated to the current word, but still real, readable
-      // language rather than a single loose word.
-      function pickDecoyPhrase(seed){
-          const startIdx = Math.floor(tpSeededRandom(seed) * tokens.length);
-          const len = 2 + Math.floor(tpSeededRandom(seed + 0.17) * 3); // 2–4 words
+      // a branch word/short phrase drawn from the trunk word's own
+      // neighbourhood in the text -- related by proximity/context, not
+      // a synonym and not a fully random pick from the whole vocabulary.
+      function pickRelatedPhrase(word, seed){
+          const pool = nearby[word];
+          let startIdx;
+          if(pool && pool.length){
+              startIdx = pool[Math.floor(tpSeededRandom(seed) * pool.length)];
+          } else {
+              startIdx = Math.floor(tpSeededRandom(seed) * tokens.length);
+          }
+          const len = 1 + Math.floor(tpSeededRandom(seed + 0.17) * 2); // 1–2 words
           return phraseAt(startIdx, len);
       }
 
@@ -654,38 +678,58 @@
       viewport.appendChild(world);
       block.appendChild(viewport);
 
-      const ROW_H = 56;
+      const ROW_H = 68;
       const ROW_DELAY = 1500;
-      const MAX_ROWS = 18;
+      const MAX_ROWS = 16;
 
       let rowIndex = 0;
       let currentWord = vocab[0] || "reading";
+      let trunkX = null;
       let autoTimer = null;
       let running = false;
 
       function growRow(){
           const vpWidth = viewport.getBoundingClientRect().width || 600;
+          if(trunkX === null) trunkX = vpWidth / 2;
+
           const seedBase = blockIdx*100000 + rowIndex*97;
           const row = document.createElement("div");
           row.className = "rl-row";
           row.style.top = (rowIndex * ROW_H) + "px";
 
-          const count = 2 + Math.floor(tpSeededRandom(seedBase) * 2); // 2–3 phrases per row
-          const selPos = Math.floor(tpSeededRandom(seedBase + 1) * count);
           const nextPhrase = pickNextPhrase(currentWord, seedBase + 2);
+          const nextWords = nextPhrase.split(' ');
+          const keyWord = nextWords[nextWords.length - 1] || currentWord;
 
-          for(let i=0; i<count; i++){
-              const isSelected = i === selPos;
-              const seed = seedBase + i*3 + 10;
-              const phrase = isSelected ? nextPhrase : pickDecoyPhrase(seed);
+          // the trunk drifts sideways a little each row, like a leaning
+          // trunk, instead of marching straight down the centre.
+          trunkX += (tpSeededRandom(seedBase + 0.15) - 0.5) * 70;
+          trunkX = Math.max(vpWidth * 0.22, Math.min(vpWidth * 0.78, trunkX));
+
+          const trunk = document.createElement("span");
+          trunk.textContent = nextPhrase;
+          trunk.className = "rl-word selected";
+          trunk.style.left = trunkX.toFixed(1) + "px";
+          trunk.style.top = "0px";
+          row.appendChild(trunk);
+
+          // branches sprout to either side of the trunk, fanning out and
+          // slightly down like twigs, drawn from the trunk word's own
+          // neighbourhood in the text.
+          const branchCount = 2 + Math.floor(tpSeededRandom(seedBase + 1) * 3); // 2–4
+          for(let i=0; i<branchCount; i++){
+              const side = i % 2 === 0 ? 1 : -1;
+              const seed = seedBase + i*7 + 40;
+              const phrase = pickRelatedPhrase(keyWord, seed);
 
               const w = document.createElement("span");
               w.textContent = phrase;
-              w.className = "rl-word " + (isSelected ? "selected" : "decoy");
-              if(!isSelected && tpSeededRandom(seed + 0.5) > 0.55){ w.style.fontStyle = "italic"; }
+              w.className = "rl-word decoy";
+              if(tpSeededRandom(seed + 0.5) > 0.55){ w.style.fontStyle = "italic"; }
 
-              const x = (i / count) * vpWidth + tpSeededRandom(seed + 0.7) * (vpWidth / count) * 0.4 + 24;
-              const y = tpSeededRandom(seed + 0.9) * 18 - 9;
+              const dist = 60 + tpSeededRandom(seed + 0.2) * 90; // 60–150px from the trunk
+              const x = trunkX + side*dist;
+              const y = 8 + tpSeededRandom(seed + 0.4) * 22 + dist * 0.06;
               w.style.left = x.toFixed(1) + "px";
               w.style.top  = y.toFixed(1) + "px";
 
@@ -693,10 +737,7 @@
           }
 
           world.appendChild(row);
-          // keep the chain going from the last word of whatever phrase
-          // was actually selected this row.
-          const nextWords = nextPhrase.split(' ');
-          currentWord = nextWords[nextWords.length - 1] || currentWord;
+          currentWord = keyWord;
           rowIndex++;
 
           const vpHeight = viewport.getBoundingClientRect().height || 400;
@@ -717,6 +758,7 @@
           world.innerHTML = "";
           rowIndex = 0;
           currentWord = vocab[0] || "reading";
+          trunkX = null;
           world.style.transform = "translate(0, 0)";
           void world.offsetHeight; // force reflow so the next pan still transitions
           world.style.transition = "";
