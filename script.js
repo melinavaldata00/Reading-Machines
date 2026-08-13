@@ -11,19 +11,13 @@ const humanLines = [
     "reading, processing, and recognition —",
     "and what this reveals about the nature of",
     "writing and reading as human processes.",
-    "",
     "The research examines how computational tools",
     "confront graphic artefacts — pages, layouts,",
-    "typographies, visual hierarchies — elements",
-    "that humans have always used to create meaning —",
-    "reducing them to coordinates, segmentations,",
-    "and data, flattening much of the designed",
-    "object's qualities in the process.",
+    "typographies, visual hierarchies.",
     "",
-    "What if, rather than treating this as a",
-    "limitation, we could implement computational",
-    "reading within design practice to generate",
-    "new perceptions of text?",
+    "4 tools building on the principles of machine",
+    "reading have been developed —",
+    "scroll down to access them.",
 ];
 
 // Machine column now reads the exact same words as the human column —
