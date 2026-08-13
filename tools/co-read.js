@@ -23,7 +23,6 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 // ── STATE ─────────────────────────────────────────────────
 const S = {
   originalImg: null,
-  originalImgSrc: null,
   W: 0, H: 0,
   timeline: [],
   currentIdx: -1,
@@ -32,7 +31,6 @@ const S = {
   editMode: true,
   nextGroupId: 0,
   gridEnabled: false,
-  ghostEnabled: true,
 };
 
 const svgDoc = document.getElementById('svg-doc');
@@ -384,23 +382,6 @@ function renderGroupVisual(g) {
   return gEl;
 }
 
-// ── ghost reference: the original source image, faint, underneath the
-// extracted composition. Without this the result is just words/shapes
-// floating on white with no visible relationship to what they came
-// from — this is what makes it legible as a READING of something,
-// rather than an arrangement that happens to be labelled as one.
-function buildGhostImageEl() {
-  if (!S.ghostEnabled || !S.originalImgSrc) return null;
-  const img = document.createElementNS(SVG_NS, 'image');
-  img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', S.originalImgSrc);
-  img.setAttribute('x', 0); img.setAttribute('y', 0);
-  img.setAttribute('width', S.W); img.setAttribute('height', S.H);
-  img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-  img.setAttribute('opacity', '0.16');
-  img.setAttribute('class', 'ghost-ref');
-  return img;
-}
-
 // ── render a state's groups onto the live, visible SVG ──────
 function renderState(st) {
   svgDoc.innerHTML = '';
@@ -409,9 +390,6 @@ function renderState(st) {
   bg.setAttribute('width', S.W); bg.setAttribute('height', S.H);
   bg.setAttribute('fill', '#ffffff');
   svgDoc.appendChild(bg);
-
-  const ghost = buildGhostImageEl();
-  if (ghost) svgDoc.appendChild(ghost);
 
   st.groups.forEach(g => {
     const gEl = renderGroupVisual(g);
@@ -542,8 +520,6 @@ function svgToCanvas(st, W, H, scale = 1) {
   bg.setAttribute('width', S.W); bg.setAttribute('height', S.H);
   bg.setAttribute('fill', '#ffffff');
   offscreenSvg.appendChild(bg);
-  const ghost = buildGhostImageEl();
-  if (ghost) offscreenSvg.appendChild(ghost);
   st.groups.forEach(g => offscreenSvg.appendChild(renderGroupVisual(g)));
   return svgElementToCanvas(offscreenSvg, W, H, scale);
 }
@@ -690,7 +666,6 @@ function loadImage(file) {
     const img = new Image();
     img.onload = () => {
       S.originalImg = img;
-      S.originalImgSrc = e.target.result;
       S.W = img.naturalWidth;
       S.H = img.naturalHeight;
       S.timeline = [];
@@ -1285,8 +1260,6 @@ function buildExportSvg(st) {
   bg.setAttribute('width', S.W); bg.setAttribute('height', S.H);
   bg.setAttribute('fill', '#ffffff');
   svg.appendChild(bg);
-  const ghost = buildGhostImageEl();
-  if (ghost) svg.appendChild(ghost);
 
   st.groups.forEach(g => svg.appendChild(renderGroupVisual(g)));
   return svg;
@@ -1317,13 +1290,6 @@ document.getElementById('btn-png').addEventListener('click', async () => {
 });
 
 window.addEventListener('resize', () => { if (S.W) { fitStage(); draw(); } });
-// ── ghost toggle — shows/hides the faint original-source reference ──
-document.getElementById('btn-ghost').addEventListener('click', () => {
-  S.ghostEnabled = !S.ghostEnabled;
-  document.getElementById('btn-ghost').textContent = S.ghostEnabled ? 'source — on' : 'source — off';
-  document.getElementById('btn-ghost').classList.toggle('on', S.ghostEnabled);
-  draw();
-});
 // ── grid toggle — shows/hides OCR line columns as visual guides ──
 document.getElementById('btn-grid').addEventListener('click', () => {
   S.gridEnabled = !S.gridEnabled;
