@@ -191,11 +191,14 @@
     @keyframes boxFloatDown{ from{ transform:translateY(calc(-1 * var(--famp))); } to{ transform:translateY(var(--famp)); } }
     @keyframes boxFloatUp{ from{ transform:translateY(var(--famp)); } to{ transform:translateY(calc(-1 * var(--famp))); } }
 
-    /* ---- 02 Blind Contour — mosaic of phrase chunks, all present as       */
-    /* plain outline boxes from the start (staggered fade-in). Each box is   */
-    /* independently click-to-peek: click shows its text, which fades back   */
-    /* out on its own after a few seconds -- click it again (whether still   */
-    /* showing or already faded) and it shows again.                        */
+    /* ---- 02 Blind Contour — "25x50" reference: a fixed decorative grid of */
+    /* empty cells (the shapes the machine sees but discards as noise) sits  */
+    /* behind everything; phrase chunks fade in one at a time, scattered     */
+    /* across it, accumulating -- once shown they stay legible for good.     */
+    /* Whichever chunk appeared most recently carries a highlighted "active" */
+    /* state (solid fill); once all chunks are in, the highlight keeps       */
+    /* roaming between them on its own. Clicking any chunk grabs the         */
+    /* highlight immediately and resets the roam timer.                     */
     .tool-page.tp-bc-exaggerate{ padding:0; overflow:hidden; }
     .tp-bc-exaggerate .tp-head{ position:absolute; top:40px; left:24px; z-index:2; margin:0; }
     .tp-bc-exaggerate .tp-title{
@@ -203,23 +206,19 @@
       font-weight:400; line-height:.92; letter-spacing:-.02em; color:var(--tp-text);
     }
     .tp-bc-exaggerate .tp-text{
-      position:absolute; inset:0; overflow-y:auto;
-      display:flex; flex-wrap:wrap; align-content:flex-start;
-      gap:10px 14px; padding:220px 90px 60px 24px;
+      position:absolute; inset:0; overflow:hidden;
+      background-image:
+        repeating-linear-gradient(0deg, var(--tp-text-faint) 0, var(--tp-text-faint) 1px, transparent 1px, transparent 52px),
+        repeating-linear-gradient(90deg, var(--tp-text-faint) 0, var(--tp-text-faint) 1px, transparent 1px, transparent 88px);
     }
     .bc-word{
-      position:relative; border:1px solid var(--tp-text-faint); padding:.55em .85em; line-height:1.3;
-      max-width:min(60vw, 420px); font-size:15px; opacity:0; cursor:pointer;
-      transition:opacity .5s ease, border-color .3s ease;
+      position:absolute; font-family:"ABC Favorit", monospace; color:var(--tp-text);
+      font-size:15px; line-height:1.3; max-width:200px; opacity:0; cursor:pointer;
+      padding:.15em .4em; margin:-.15em -.4em; border-radius:2px;
+      transition:opacity .6s ease, background .3s ease, color .3s ease;
     }
     .bc-word.visible{ opacity:1; }
-    .bc-word:hover{ opacity:.85; }
-    .bc-word.showing{ border-color:var(--tp-text); }
-    .bc-label{
-      display:block; font-family:"ABC Favorit", monospace; color:var(--tp-text);
-      opacity:0; transition:opacity .4s ease;
-    }
-    .bc-word.showing .bc-label{ opacity:1; }
+    .bc-word.current{ background:var(--tp-text); color:var(--tp-bg); }
 
     /* ---- 03 Anti Type ---- */
     .tp-float.tp-anti-write .tp-text{ position:static; inset:auto; }
@@ -526,53 +525,80 @@
       if(boxes.length) revealBox(0);
   }
 
-  // 02 Blind Contour — mosaic of phrase chunks (flex-wrap grid), all
-  // present as plain outline boxes from the start (staggered fade-in).
-  // Each box is independently click-to-peek: click shows its text, which
-  // fades back out on its own after a few seconds -- clicking the same
-  // box again, whether its text is still showing or already faded, shows
-  // it again.
+  // 02 Blind Contour — "25x50" reference: individual words scatter, one at
+  // a time, across a fixed decorative grid (the shapes the machine sees
+  // but discards as noise). Once a word appears it stays legible for
+  // good -- nothing here fades back out. Whichever word appeared most
+  // recently carries a highlighted "active" state; once every word is in,
+  // the highlight keeps roaming between them on its own. Clicking any
+  // already-revealed word grabs the highlight immediately.
   function wrapAbstractWords(block){
       const text = block.dataset.text.replace(/\s+/g, ' ').trim();
       const blockIdx = wrapCounter++;
       const words = text.split(' ').filter(Boolean);
+      if(!words.length) return;
 
-      // same 5-8 word phrase chunking as OCR Skeleton's mosaic
-      const chunks = [];
-      let wi = 0, gi = 0;
-      while(wi < words.length){
-          const size = 5 + Math.floor(tpSeededRandom(blockIdx*1000 + gi) * 4);
-          const take = [];
-          while(wi < words.length && take.length < size){ take.push(words[wi]); wi++; }
-          chunks.push(take.join(' '));
-          gi++;
+      const COLS = 8;
+      const ROWS = Math.max(1, Math.ceil((words.length * 1.6) / COLS));
+
+      // every grid slot, seeded-shuffled, handed out one per word -- so no
+      // two words ever land on the same cell.
+      const slots = [];
+      for(let r = 0; r < ROWS; r++){
+          for(let c = 0; c < COLS; c++) slots.push({ r, c });
       }
-      if(chunks.length > 1 && chunks[chunks.length - 1].split(' ').length < 3){
-          const last = chunks.pop();
-          chunks[chunks.length - 1] += ' ' + last;
+      for(let i = slots.length - 1; i > 0; i--){
+          const j = Math.floor(tpSeededRandom(blockIdx*1000 + i) * (i + 1));
+          const tmp = slots[i]; slots[i] = slots[j]; slots[j] = tmp;
       }
 
-      const PEEK_MS = 3000; // how long a clicked chunk's text stays visible before fading back out
+      const ROAM_MS = 2200; // how long the highlight rests on a word before moving on, once all are in
 
-      chunks.forEach((chunk, ci)=>{
-          const wrap = document.createElement("div");
-          wrap.className = "bc-word";
+      const items = words.map((word, wi)=>{
+          const slot = slots[wi % slots.length];
+          const jitterX = (tpSeededRandom(blockIdx*1000 + wi + 0.3) - 0.5) * 4;
+          const jitterY = (tpSeededRandom(blockIdx*1000 + wi + 0.6) - 0.5) * 4;
+          const left = Math.min(92, Math.max(2, (slot.c / COLS) * 100 + jitterX));
+          const top  = Math.min(90, Math.max(4, (slot.r / ROWS) * 100 + jitterY));
 
-          const label = document.createElement("span");
-          label.className = "bc-label";
-          label.textContent = chunk;
+          const el = document.createElement("div");
+          el.className = "bc-word";
+          el.textContent = word;
+          el.style.left = left.toFixed(1) + "%";
+          el.style.top  = top.toFixed(1) + "%";
+          block.appendChild(el);
+          return el;
+      });
 
-          wrap.appendChild(label);
-          block.appendChild(wrap);
+      let roamTimer = null;
+      let currentIdx = -1;
+      function setCurrent(idx){
+          if(currentIdx >= 0) items[currentIdx].classList.remove("current");
+          currentIdx = idx;
+          items[currentIdx].classList.add("current");
+      }
+      function scheduleRoam(){
+          clearTimeout(roamTimer);
+          roamTimer = setTimeout(()=>{
+              setCurrent((currentIdx + 1) % items.length);
+              scheduleRoam();
+          }, ROAM_MS);
+      }
 
-          // staggered fade-in for the initial mosaic appearing
-          setTimeout(()=> wrap.classList.add("visible"), ci * 70);
+      // reveal words one at a time; each newly revealed word grabs the
+      // highlight immediately (matches the reference: the highlight
+      // follows whatever just appeared, then roams once everything's in).
+      items.forEach((item, wi)=>{
+          setTimeout(()=>{
+              item.classList.add("visible");
+              setCurrent(wi);
+              scheduleRoam();
+          }, wi * 260);
 
-          let hideTimer = null;
-          wrap.addEventListener("click", ()=>{
-              wrap.classList.add("showing");
-              clearTimeout(hideTimer);
-              hideTimer = setTimeout(()=> wrap.classList.remove("showing"), PEEK_MS);
+          item.addEventListener("click", ()=>{
+              if(!item.classList.contains("visible")) return;
+              setCurrent(wi);
+              scheduleRoam();
           });
       });
   }
