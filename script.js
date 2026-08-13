@@ -192,9 +192,17 @@ const scrollSpeed = 40; // px al secondo — stessa per entrambe le colonne
 let contentHeight = 0;
 let viewportHeight = 0;
 
+// measures off the machine column, not human -- human's whole panel is
+// now display:none on the landing (only the machine/right column is kept,
+// moved to the left), and a display:none subtree always reports 0 for
+// offsetHeight/offsetWidth. Measuring off the hidden column made both
+// contentHeight and viewportHeight collapse to ~0, which made wrapScroll()'s
+// limit essentially 0 too -- so any tiny movement immediately looked like
+// "reached the end" and reset to 0, which is why the text stopped
+// visibly scrolling at all once the human column was hidden.
 function measureHeights(){
-    contentHeight = humanContent.offsetHeight || 1;
-    viewportHeight = human.parentElement.offsetHeight || 0;
+    contentHeight = machineContent.offsetHeight || 1;
+    viewportHeight = machine.parentElement.offsetHeight || 0;
 }
 
 measureHeights();
