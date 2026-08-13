@@ -216,7 +216,7 @@ function extractContours(imageData, bx, by, bw, bh, fullW, degradation = 0, base
   }
 
   const dots = [];
-  const baseStep = Math.max(3, Math.floor(Math.min(bw, bh) / 16));
+  const baseStep = Math.max(3, Math.floor(Math.min(bw, bh) / 12));
   const step = Math.max(3, Math.round(baseStep * (1 + degradation * 0.2)));
   const offX = Math.floor(Math.random() * step);
   const offY = Math.floor(Math.random() * step);
@@ -252,7 +252,7 @@ function extractSilhouette(imageData, bx, by, bw, bh, fullW, degradation = 0, ba
     return (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
   };
 
-  const baseStep = Math.max(3, Math.floor(Math.min(bw, bh) / 16));
+  const baseStep = Math.max(3, Math.floor(Math.min(bw, bh) / 12));
   const step = Math.max(3, Math.round(baseStep * (1 + degradation * 0.2)));
   const offX = Math.floor(Math.random() * step);
   const offY = Math.floor(Math.random() * step);
@@ -356,7 +356,10 @@ function renderGroupVisual(g) {
       p.setAttribute('d', dotsToPath(silhouette));
       p.setAttribute('transform', `translate(${g.x} ${g.y})`);
       p.style.fill = g.customColor || '#000000';
-      p.style.fillOpacity = Math.max(0.28, g.fill / 100) * 0.6 * opacity;
+      // raised from the old 0.28/0.6 floor — the silhouette is what
+      // actually reads as a letterform, so it needs to carry more
+      // weight than the sparse edge texture on top of it.
+      p.style.fillOpacity = Math.max(0.42, g.fill / 100) * 0.72 * opacity;
       p.style.stroke = 'none';
       gEl.appendChild(p);
     }
@@ -365,12 +368,18 @@ function renderGroupVisual(g) {
       const p = document.createElementNS(SVG_NS, 'path');
       p.setAttribute('d', dotsToPath(g.paths));
       p.setAttribute('transform', `translate(${g.x} ${g.y})`);
-      // fill is always applied with proportional opacity — 0=transparent, 100=opaque
+      // this is the "machine-read texture" layer, not the legibility
+      // base (that's the silhouette above) — it should read as a light
+      // marking on top of the word, not compete with it. Dots get a
+      // soft fill of their own instead of being hollow rings (an
+      // unfilled circle at full stroke opacity reads as a wiry, busy
+      // outline), and the stroke itself is toned down rather than full
+      // opacity by default.
       p.style.fill = g.customColor || '#000000';
-      p.style.fillOpacity = (g.fill / 100) * opacity;
+      p.style.fillOpacity = Math.max(0.16, g.fill / 100) * opacity;
       p.style.stroke = strokeColor;
-      p.style.strokeOpacity = opacity;
-      p.style.strokeWidth = '1';
+      p.style.strokeOpacity = 0.5 * opacity;
+      p.style.strokeWidth = '0.75';
       gEl.appendChild(p);
     }
   }
