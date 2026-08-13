@@ -426,6 +426,52 @@
           return box;
       });
 
+      // clicking a phrase box also breaks it down into its own words --
+      // a second, finer pass of "bounding boxes", same as OCR itself
+      // works in stages (block/line/word) rather than reading everything
+      // at one resolution. The words spawn scattered close to where the
+      // phrase was, each with its own float, and the phrase box that
+      // spawned them fades out -- it's been superseded by its own detail.
+      function splitIntoWords(box, seed){
+          const words = box.textContent.trim().split(/\s+/).filter(Boolean);
+          if(!words.length) return;
+
+          const originLeft = parseFloat(box.style.left) || 40;
+          const originTop  = parseFloat(box.style.top)  || 30;
+
+          words.forEach((word, wi)=>{
+              const wSeed = seed*1000 + wi;
+              const jitterX = (tpSeededRandom(wSeed + 0.1) - 0.5) * 22;
+              const jitterY = (tpSeededRandom(wSeed + 0.2) - 0.5) * 18;
+              const left = Math.max(3, Math.min(80, originLeft + jitterX));
+              const top  = Math.max(5, Math.min(60, originTop  + jitterY));
+              const fsize = 10 + tpSeededRandom(wSeed + 0.3) * 9;
+              const fdur  = 3.5 + tpSeededRandom(wSeed + 0.4) * 4;
+              const famp  = 10 + tpSeededRandom(wSeed + 0.5) * 26;
+              const goingDown = tpSeededRandom(wSeed + 0.6) > 0.5;
+
+              const wbox = document.createElement("div");
+              wbox.className = "ocr-box ocr-box-word";
+              wbox.textContent = word;
+              wbox.style.left = left.toFixed(1) + "%";
+              wbox.style.top  = top.toFixed(1) + "%";
+              wbox.style.fontSize = fsize.toFixed(1) + "px";
+              wbox.style.setProperty("--fdur", fdur.toFixed(2) + "s");
+              wbox.style.setProperty("--famp", famp.toFixed(1) + "px");
+              wbox.style.setProperty("--floatAnim", goingDown ? "boxFloatDown" : "boxFloatUp");
+              wbox.style.animationDelay = (wi * 0.05).toFixed(2) + "s";
+
+              block.appendChild(wbox);
+              // rAF so the "visible" transition still runs instead of
+              // starting already-visible (element needs one painted
+              // frame at opacity 0 first for the CSS transition to fire).
+              requestAnimationFrame(()=> wbox.classList.add("visible"));
+          });
+
+          box.classList.remove("visible");
+          setTimeout(()=> box.remove(), 650);
+      }
+
       function revealBox(ci){
           const box = boxes[ci];
           box.classList.add("visible");
@@ -435,6 +481,7 @@
                   if(box.dataset.used) return;
                   box.dataset.used = "1";
                   box.classList.remove("clickable");
+                  splitIntoWords(box, blockIdx*1000 + ci);
                   revealBox(ci + 1);
               });
           }
