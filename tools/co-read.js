@@ -30,7 +30,10 @@ const S = {
   selectedGroups: [],
   editMode: true,
   nextGroupId: 0,
-  gridEnabled: false,
+  // words render at a tidy, ordered position by default instead of the
+  // raw scattered OCR coordinates — see layoutFlow() below. Off = the
+  // words' literal position in the source image.
+  flowLayout: true,
 };
 
 const svgDoc = document.getElementById('svg-doc');
@@ -421,9 +424,6 @@ function renderState(st) {
     }
     svgDoc.appendChild(gEl);
   });
-
-  // draw grid overlay on top if enabled
-  if (S.gridEnabled) drawGrid(st);
 }
 
 function draw() {
@@ -567,21 +567,75 @@ async function runOCR(imageSource, onProgress) {
     });
 }
 
-// compute lineMinX map from boxes — used for grid alignment
-function computeLineMinX(boxes) {
-  const map = {};
-  boxes.forEach(b => {
-    if (map[b.lineNum] === undefined || b.x < map[b.lineNum]) {
-      map[b.lineNum] = b.x;
-    }
+// ── flow layout: reposition words into an ordered, non-overlapping
+// reading flow instead of their raw scattered OCR coordinates, so the
+// result reads as an actual composed page rather than a field of
+// independent elements floating at arbitrary points. Reading order
+// (line, then original left-to-right position within it) is preserved
+// from the source; a row breaks whenever the source's own OCR line
+// number changes, which keeps the source's real line structure intact
+// even though position is no longer literal. If a single column of
+// rows would run past the bottom of the canvas, rows are split across
+// side-by-side columns instead of spilling off the page.
+// Mutates each group with flowX/flowY — doesn't touch x/y itself, so
+// this can always be computed regardless of which layout is currently
+// active (see the layout toggle below).
+function layoutFlow(groups) {
+  if (!groups.length) return;
+  const MARGIN   = Math.max(24, S.W * 0.03);
+  const ROW_GAP  = 14;
+  const WORD_GAP = 16;
+  const usableW  = Math.max(100, S.W - 2 * MARGIN);
+  const usableH  = Math.max(100, S.H - 2 * MARGIN);
+
+  const ordered = groups.slice().sort((a, b) => {
+    if (a.lineNum !== b.lineNum) return a.lineNum - b.lineNum;
+    return a.originalX - b.originalX;
   });
-  return map;
+
+  // Phase 1 — group into rows.
+  const rows = [];
+  let row = [], rowW = 0, prevLine = null;
+  ordered.forEach(g => {
+    const isNewLine = prevLine !== null && g.lineNum !== prevLine;
+    const wouldOverflow = row.length && (rowW + WORD_GAP + g.w) > usableW;
+    if (isNewLine || wouldOverflow) {
+      rows.push(row);
+      row = []; rowW = 0;
+    }
+    row.push(g);
+    rowW += (row.length > 1 ? WORD_GAP : 0) + g.w;
+    prevLine = g.lineNum;
+  });
+  if (row.length) rows.push(row);
+
+  const rowHeights = rows.map(r => Math.max(...r.map(g => g.h)));
+  const totalRowsH = rowHeights.reduce((s, h) => s + h, 0) + ROW_GAP * Math.max(0, rows.length - 1);
+
+  // Phase 2 — split rows across columns if one column would run too tall.
+  const neededCols = Math.max(1, Math.ceil(totalRowsH / usableH));
+  const colWidth   = usableW / neededCols;
+  const rowsPerCol = Math.ceil(rows.length / neededCols);
+
+  let col = 0, cursorY = MARGIN;
+  rows.forEach((r, ri) => {
+    if (ri > 0 && ri % rowsPerCol === 0 && col < neededCols - 1) {
+      col++;
+      cursorY = MARGIN;
+    }
+    let cursorX = MARGIN + col * colWidth;
+    r.forEach(g => {
+      g.flowX = cursorX;
+      g.flowY = cursorY;
+      cursorX += g.w + WORD_GAP;
+    });
+    cursorY += rowHeights[ri] + ROW_GAP;
+  });
 }
 
 
 // ── build new groups from a fresh OCR pass ──────────────────
 function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
-  const lineMinX = computeLineMinX(boxes);
   const ctx = srcCanvas.getContext('2d', { willReadFrequently: true });
   const imgData = ctx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
 
@@ -592,7 +646,7 @@ function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
     return (x2 - x1) * (y2 - y1);
   }
 
-  return boxes.map(b => {
+  const groups = boxes.map(b => {
     const localThreshold = computeLocalThreshold(imgData, b.x, b.y, b.w, b.h, srcCanvas.width);
     const complexity = measureComplexity(imgData, b.x, b.y, b.w, b.h, srcCanvas.width, localThreshold);
 
@@ -631,21 +685,19 @@ function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
     // C: automatic scale from confidence
     const confScale = conf >= 90 ? 180 : conf >= 60 ? 100 : conf >= 30 ? 55 : 40;
 
-    // D: grid alignment — snap x to line minX if gridEnabled
-    const gx = b.x;
-
     return {
       id: S.nextGroupId++,
       text: b.text,
       conf,
       complexity,
       lineNum: b.lineNum,
-      originalX: b.x,   // always store original position for grid toggle
+      originalX: b.x,   // literal OCR position, kept so the layout toggle can switch back to it
+      originalY: b.y,
       manualConf: null,
       textOverridden: false,
       fill: 0,
-      x: gx, y: b.y, w: b.w, h: b.h,
-      cx: gx + b.w / 2, cy: b.y + b.h / 2,
+      x: b.x, y: b.y, w: b.w, h: b.h,
+      cx: b.x + b.w / 2, cy: b.y + b.h / 2,
       paths,
       fillPaths,
       scale: confScale,
@@ -657,6 +709,19 @@ function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
       disperseAmount: 0,
     };
   }).filter(g => g.paths.length > 0 || g.conf < SHAPE_THRESHOLD);
+
+  // compute the ordered, non-overlapping flow position for every
+  // surviving group, then apply it (or the raw original position) as
+  // the active x/y depending on the current layout mode.
+  layoutFlow(groups);
+  groups.forEach(g => {
+    g.x = S.flowLayout ? g.flowX : g.originalX;
+    g.y = S.flowLayout ? g.flowY : g.originalY;
+    g.cx = g.x + g.w / 2;
+    g.cy = g.y + g.h / 2;
+  });
+
+  return groups;
 }
 
 // ── initial upload ────────────────────────────────────────
@@ -1290,37 +1355,25 @@ document.getElementById('btn-png').addEventListener('click', async () => {
 });
 
 window.addEventListener('resize', () => { if (S.W) { fitStage(); draw(); } });
-// ── grid toggle — shows/hides OCR line columns as visual guides ──
-document.getElementById('btn-grid').addEventListener('click', () => {
-  S.gridEnabled = !S.gridEnabled;
-  document.getElementById('btn-grid').textContent = S.gridEnabled ? 'grid — on' : 'grid — off';
-  document.getElementById('btn-grid').classList.toggle('on', S.gridEnabled);
-  draw(); // redraw with or without grid overlay
+// ── layout toggle — flow (tidy, ordered) vs original (raw OCR position) ──
+// Both positions are already computed and stored on every group
+// (flowX/flowY, originalX/originalY) at read time, so toggling here is
+// just picking which one is currently active — no need to recompute.
+document.getElementById('btn-layout').addEventListener('click', () => {
+  S.flowLayout = !S.flowLayout;
+  document.getElementById('btn-layout').textContent = S.flowLayout ? 'layout — flow' : 'layout — original';
+  document.getElementById('btn-layout').classList.toggle('on', S.flowLayout);
+  const st = S.timeline[S.currentIdx];
+  if (st) {
+    st.groups.forEach(g => {
+      g.x = S.flowLayout ? g.flowX : g.originalX;
+      g.y = S.flowLayout ? g.flowY : g.originalY;
+      g.cx = g.x + g.w / 2;
+      g.cy = g.y + g.h / 2;
+    });
+    draw();
+  }
 });
-
-function drawGrid(st) {
-  if (!st || !st.groups.length) return;
-
-  // collect unique lineMinX values from groups
-  const lineMinX = {};
-  st.groups.forEach(g => {
-    const ox = g.originalX !== undefined ? g.originalX : g.x;
-    if (g.lineNum !== undefined) {
-      if (lineMinX[g.lineNum] === undefined || ox < lineMinX[g.lineNum]) {
-        lineMinX[g.lineNum] = ox;
-      }
-    }
-  });
-
-  // draw a vertical line for each unique column position
-  Object.values(lineMinX).forEach(x => {
-    const line = document.createElementNS(SVG_NS, 'line');
-    line.setAttribute('x1', x); line.setAttribute('y1', 0);
-    line.setAttribute('x2', x); line.setAttribute('y2', S.H);
-    line.setAttribute('class', 'grid-line');
-    svgDoc.appendChild(line);
-  });
-}
 window.addEventListener('message', (e) => {
   if (e.origin !== location.origin) return;
   if (e.data && e.data.type === 'open-guide') {
