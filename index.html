@@ -402,12 +402,17 @@
           box.className = "ocr-box";
           box.textContent = chunk;
 
+          // top/famp kept conservative on purpose: boxes now hold longer
+          // phrases (taller, wrapped over 2-3 lines), and this page clips
+          // overflow -- a box spawned too low, combined with its own
+          // height plus the float drift, could sit partly or fully below
+          // the visible area and read as if the text just stopped.
           const seed = blockIdx*1000 + ci;
-          const left  = 6  + tpSeededRandom(seed + 0.1) * 68;
-          const top   = 10 + tpSeededRandom(seed + 0.2) * 64;
-          const fsize = 14 + tpSeededRandom(seed + 0.3) * 18;
+          const left  = 6  + tpSeededRandom(seed + 0.1) * 66;
+          const top   = 8  + tpSeededRandom(seed + 0.2) * 46;
+          const fsize = 14 + tpSeededRandom(seed + 0.3) * 16;
           const fdur  = 4.5 + tpSeededRandom(seed + 0.4) * 4.5;
-          const famp  = 26 + tpSeededRandom(seed + 0.5) * 64;
+          const famp  = 16 + tpSeededRandom(seed + 0.5) * 40;
           const goingDown = tpSeededRandom(seed + 0.6) > 0.5;
 
           box.style.left = left.toFixed(1) + "%";
