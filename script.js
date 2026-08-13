@@ -237,6 +237,17 @@ function wrapScroll(){
     }
 }
 
+// exposed so index.html's page-level wheel handler can give the
+// landing's very first real scroll gesture a visible, immediate effect
+// -- jumping the marquee forward by a chunk of text -- instead of the
+// gesture doing nothing while the auto-play's comparatively slow,
+// continuous drift is the only thing moving it.
+window.nudgeMarquee = function(amount){
+    humanY -= amount;
+    machineY -= amount;
+    wrapScroll();
+};
+
 /* ------------------------------ */
 /* CLICK-THROUGH — clicking either column jumps down to the tool pages,  */
 /* which now live further down this same page instead of a separate one. */

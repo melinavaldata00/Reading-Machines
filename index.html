@@ -966,7 +966,11 @@
       if(jumping) return;
       if(e.deltaY > 10){
           if(sectionIndex === 0 && !landingPrimed){
-              landingPrimed = true; // consume this one, stay put -- see comment above
+              landingPrimed = true; // this gesture reveals more text instead of jumping
+              if(typeof window.nudgeMarquee === "function"){
+                  const amount = Math.max(140, Math.min(Math.abs(e.deltaY) * 2.5, 420));
+                  window.nudgeMarquee(amount);
+              }
               return;
           }
           jumpTo(sectionIndex + 1);
