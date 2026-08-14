@@ -2,24 +2,18 @@
 //  ocr-to-indesign.jsx  —  ExtendScript per InDesign 2026
 //
 //  confidenza → tipografia + colore + opacità
-//  90-100  ABC Favorit Regular     · colore campionato dall'immagine originale · grande      · 100%
-//  60-89   ABC Gaisyr Mono Regular · colore campionato dall'immagine originale · medio-grande· 100%
-//  30-59   ABC Gaisyr Mono Regular · colore campionato dall'immagine originale · medio       · 100%
-//  0-29    forma geometrica        · colore campionato dall'immagine originale · grande/piena· 55%
+//  90-100  ABC Favorit Regular     · colore campionato dall'immagine originale · grande      · solo contorno (stroke) · 100%
+//  60-89   ABC Gaisyr Mono Regular · colore campionato dall'immagine originale · medio-grande· pieno (fill)          · 100%
+//  30-59   ABC Gaisyr Mono Regular · colore campionato dall'immagine originale · medio       · pieno (fill)          · 100%
+//  0-29    forma geometrica        · colore campionato dall'immagine originale · grande/piena· pieno (fill)          · 55%
 //
 //  Il colore non è più una palette fissa (nero/blu/rosso/verde) -- ogni
 //  frame esportato da position-zero.html porta il proprio "color" (hex),
 //  già campionato e reso vivace dal tool web; questo script lo riusa
 //  direttamente invece di ignorarlo.
 //
-//  MOLTIPLICAZIONE (solo testo, conf >= 30): una parola letta al 100%
-//  resta un'unica istanza pulita; più la confidenza scende, più volte
-//  quella stessa parola viene ridisegnata (fino a ~7 copie a confidenza
-//  30), ciascuna leggermente spostata/ruotata rispetto all'originale --
-//  l'incertezza della macchina diventa ripetizione/eco sulla pagina. Le
-//  forme geometriche (conf < 30) NON si moltiplicano più -- restano
-//  sempre una sola istanza, e la loro varietà viene dalla forma stessa
-//  (vedi shapeFromText), non dalla ripetizione.
+//  Ogni parola/forma viene disegnata una sola volta -- nessuna
+//  moltiplicazione/ripetizione basata sulla confidenza (rimossa).
 // ─────────────────────────────────────────────────────────
 
 var BASE_SIZE = 14;
@@ -68,8 +62,8 @@ function arizonaFromConf(conf) {
     size:      BASE_SIZE * 3.2,   // dominante
     tracking:  0,
     leading:   BASE_SIZE * 3.6,
-    fill:      true,
-    stroke:    0,
+    fill:      false,             // alta confidenza -> solo contorno, non più pieno
+    stroke:    1.2,
     opacity:   100
   };
   if (conf >= 60) return {
@@ -284,44 +278,6 @@ function makeShape(f) {
   return shape;
 }
 
-// ── MOLTIPLICAZIONE: più incerta la lettura, più la parola si ripete ──
-// Una parola letta al 100% resta un'unica istanza pulita. Man mano che
-// la confidenza scende, la stessa parola/forma viene ridisegnata più
-// volte, ciascuna leggermente spostata/ruotata rispetto all'originale --
-// l'incertezza della macchina diventa letteralmente ripetizione/eco sulla
-// pagina, invece di una singola istanza statica indipendente dalla
-// confidenza.
-function copiesForConf(conf) {
-  var t = Math.max(0, Math.min(100, conf)) / 100;
-  return Math.round(1 + (1 - t) * 6); // 1 copia a 100% conf. -> fino a 7 a 0%
-}
-
-// una variante "eco" di f: stessa parola/forma/colore/confidenza, sulla
-// STESSA riga dell'originale (stessa y) -- le copie si susseguono in
-// orizzontale, alternando a destra/sinistra della parola originale,
-// invece di scivolare anche in verticale come prima. Si legge come una
-// ripetizione in fila ("parola parola parola parola") invece di uno
-// sciame sparso sulla pagina. Solo un lieve tremore di rotazione resta,
-// per non renderle un copia-incolla troppo meccanico.
-function jitterFrame(f, idx) {
-  var gap  = f.w * 0.25; // spazio tra una copia e la successiva sulla riga
-  var step = Math.ceil(idx / 2);
-  var dir  = (idx % 2 === 1) ? 1 : -1; // alterna: 1=destra, 2=sinistra, 3=destra, ...
-  var x    = f.x + dir * step * (f.w + gap);
-  var rotJitter = (Math.random() - 0.5) * 10; // gradi -- solo un lieve tremore
-  return {
-    id:       f.id + "_m" + idx,
-    x:        x,
-    y:        f.y, // stessa riga dell'originale, mai spostata in verticale
-    w:        f.w,
-    h:        f.h,
-    text:     f.text,
-    conf:     f.conf,
-    color:    f.color,
-    rotation: (f.rotation || 0) + rotJitter,
-  };
-}
-
 // ── MAIN LOOP ─────────────────────────────────────────────
 var frames   = data.frames;
 var nText    = 0;
@@ -337,9 +293,8 @@ for (var i = 0; i < frames.length; i++) {
   var az = arizonaFromConf(f.conf);
 
   if (az === null) {
-    // conf < 30 → forma geometrica: sempre una sola istanza, mai
-    // moltiplicata -- la varietà qui viene dalla forma stessa (vedi
-    // shapeFromText), non dalla ripetizione.
+    // conf < 30 → forma geometrica: sempre una sola istanza -- la
+    // varietà qui viene dalla forma stessa (vedi shapeFromText).
     try {
       makeShape(f);
       nShapes++;
@@ -348,17 +303,14 @@ for (var i = 0; i < frames.length; i++) {
       nSkipped++;
     }
   } else {
-    // conf >= 30 → testo: la moltiplicazione resta solo qui.
-    var copies = copiesForConf(f.conf);
-    for (var c = 0; c < copies; c++) {
-      var variant = (c === 0) ? f : jitterFrame(f, c);
-      try {
-        makeOutlineText(variant, az);
-        nText++;
-      } catch(e) {
-        log("errore testo " + i + "." + c + ": " + e.message);
-        nSkipped++;
-      }
+    // conf >= 30 → testo: sempre una sola istanza, nessuna
+    // moltiplicazione/ripetizione.
+    try {
+      makeOutlineText(f, az);
+      nText++;
+    } catch(e) {
+      log("errore testo " + i + ": " + e.message);
+      nSkipped++;
     }
   }
 }
