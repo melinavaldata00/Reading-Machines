@@ -12,11 +12,14 @@
 //  già campionato e reso vivace dal tool web; questo script lo riusa
 //  direttamente invece di ignorarlo.
 //
-//  MOLTIPLICAZIONE: una parola letta al 100% resta un'unica istanza
-//  pulita; più la confidenza scende, più volte quella stessa
-//  parola/forma viene ridisegnata (fino a ~7 copie a confidenza 0),
-//  ciascuna leggermente spostata/ruotata rispetto all'originale --
-//  l'incertezza della macchina diventa ripetizione/eco sulla pagina.
+//  MOLTIPLICAZIONE (solo testo, conf >= 30): una parola letta al 100%
+//  resta un'unica istanza pulita; più la confidenza scende, più volte
+//  quella stessa parola viene ridisegnata (fino a ~7 copie a confidenza
+//  30), ciascuna leggermente spostata/ruotata rispetto all'originale --
+//  l'incertezza della macchina diventa ripetizione/eco sulla pagina. Le
+//  forme geometriche (conf < 30) NON si moltiplicano più -- restano
+//  sempre una sola istanza, e la loro varietà viene dalla forma stessa
+//  (vedi shapeFromText), non dalla ripetizione.
 // ─────────────────────────────────────────────────────────
 
 var BASE_SIZE = 14;
@@ -92,13 +95,44 @@ function arizonaFromConf(conf) {
   return null; // → forma geometrica
 }
 
-// ── SHAPE TYPE from first char ────────────────────────────
-// O/0/C → cerchio   A/V/W/M → triangolo   tutto il resto → quadrato
-function shapeFromText(txt) {
+// ── SHAPE TYPE from first char + word id ──────────────────
+// prima: solo 3 forme possibili (cerchio/triangolo/rettangolo), una per
+// ogni parola in base alla sola lettera iniziale. Ora ogni gruppo di
+// lettere ha più varianti (tondeggianti/appuntite/squadrate), scelte a
+// rotazione tramite l'id della parola così anche parole con la stessa
+// lettera iniziale non escono sempre con la stessa forma identica.
+function shapeFromText(txt, id) {
   var c = (txt + "").replace(/^\s+/, "").charAt(0).toUpperCase();
-  if ("O0CQDGU".indexOf(c) >= 0) return "circle";
-  if ("AVWMXKYZ".indexOf(c) >= 0) return "triangle";
-  return "rect";
+  var groups = {
+    round:   ["circle", "hexagon", "pentagon"],
+    pointed: ["triangle", "star", "diamond"],
+    square:  ["rect", "diamond", "hexagon"],
+  };
+  var group;
+  if ("O0CQDGU".indexOf(c) >= 0) group = groups.round;
+  else if ("AVWMXKYZ".indexOf(c) >= 0) group = groups.pointed;
+  else group = groups.square;
+  var idx = (typeof id === "number" && id >= 0) ? id % group.length : 0;
+  return group[idx];
+}
+
+// crea la page item giusta per ogni kind. cerchio e rettangolo hanno
+// costruttori dedicati; tutte le altre varianti sono poligoni regolari
+// (o a stella), il cui numero di lati/inset va impostato nelle
+// polygonPreferences del documento PRIMA di chiamare polygons.add() --
+// è l'unico modo scriptabile per controllarne la forma in InDesign.
+function buildShapeItem(kind) {
+  if (kind === "circle") return page.ovals.add();
+  if (kind === "rect")   return page.rectangles.add();
+  var sides = 3, inset = 0;
+  if (kind === "triangle") { sides = 3; inset = 0; }
+  if (kind === "diamond")  { sides = 4; inset = 0; }
+  if (kind === "pentagon") { sides = 5; inset = 0; }
+  if (kind === "hexagon")  { sides = 6; inset = 0; }
+  if (kind === "star")     { sides = 5; inset = 45; }
+  doc.polygonPreferences.polygonNumberOfSides = sides;
+  doc.polygonPreferences.polygonStarInset     = inset;
+  return page.polygons.add();
 }
 
 // ── LOG ──────────────────────────────────────────────────
@@ -230,20 +264,12 @@ var SHAPE_SCALE = 3.2; // quanto più grande della sua parola originale
 var SHAPE_OPACITY = 55;
 
 function makeShape(f) {
-  var kind = shapeFromText(f.text);
-  var shape;
+  var kind  = shapeFromText(f.text, f.id);
+  var shape = buildShapeItem(kind);
 
   var cx = f.x + f.w / 2, cy = f.y + f.h / 2;
   var sw = f.w * SHAPE_SCALE, sh = f.h * SHAPE_SCALE;
   var sx = cx - sw / 2, sy = cy - sh / 2;
-
-  if (kind === "circle") {
-    shape = page.ovals.add();
-  } else if (kind === "triangle") {
-    shape = page.polygons.add({numberOfSides: 3});
-  } else {
-    shape = page.rectangles.add();
-  }
   shape.geometricBounds = [sy, sx, sy + sh, sx + sw];
 
   // era: contorno verde fisso, spessore 0.75, opacità 8% (praticamente
@@ -309,23 +335,24 @@ for (var i = 0; i < frames.length; i++) {
   if (f.w <= 0 || f.h <= 0) { nSkipped++; continue; }
   if (!f.text || f.text.replace(/\s/g,"") === "") { nSkipped++; continue; }
 
-  var az     = arizonaFromConf(f.conf);
-  var copies = copiesForConf(f.conf);
+  var az = arizonaFromConf(f.conf);
 
-  for (var c = 0; c < copies; c++) {
-    var variant = (c === 0) ? f : jitterFrame(f, c);
-
-    if (az === null) {
-      // conf < 30 → forma geometrica
-      try {
-        makeShape(variant);
-        nShapes++;
-      } catch(e) {
-        log("errore shape " + i + "." + c + ": " + e.message);
-        nSkipped++;
-      }
-    } else {
-      // conf >= 30 → testo
+  if (az === null) {
+    // conf < 30 → forma geometrica: sempre una sola istanza, mai
+    // moltiplicata -- la varietà qui viene dalla forma stessa (vedi
+    // shapeFromText), non dalla ripetizione.
+    try {
+      makeShape(f);
+      nShapes++;
+    } catch(e) {
+      log("errore shape " + i + ": " + e.message);
+      nSkipped++;
+    }
+  } else {
+    // conf >= 30 → testo: la moltiplicazione resta solo qui.
+    var copies = copiesForConf(f.conf);
+    for (var c = 0; c < copies; c++) {
+      var variant = (c === 0) ? f : jitterFrame(f, c);
       try {
         makeOutlineText(variant, az);
         nText++;
