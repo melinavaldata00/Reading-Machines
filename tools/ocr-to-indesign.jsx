@@ -11,6 +11,12 @@
 //  frame esportato da position-zero.html porta il proprio "color" (hex),
 //  già campionato e reso vivace dal tool web; questo script lo riusa
 //  direttamente invece di ignorarlo.
+//
+//  MOLTIPLICAZIONE: una parola letta al 100% resta un'unica istanza
+//  pulita; più la confidenza scende, più volte quella stessa
+//  parola/forma viene ridisegnata (fino a ~7 copie a confidenza 0),
+//  ciascuna leggermente spostata/ruotata rispetto all'originale --
+//  l'incertezza della macchina diventa ripetizione/eco sulla pagina.
 // ─────────────────────────────────────────────────────────
 
 var BASE_SIZE = 14;
@@ -223,6 +229,39 @@ function makeShape(f) {
   return shape;
 }
 
+// ── MOLTIPLICAZIONE: più incerta la lettura, più la parola si ripete ──
+// Una parola letta al 100% resta un'unica istanza pulita. Man mano che
+// la confidenza scende, la stessa parola/forma viene ridisegnata più
+// volte, ciascuna leggermente spostata/ruotata rispetto all'originale --
+// l'incertezza della macchina diventa letteralmente ripetizione/eco sulla
+// pagina, invece di una singola istanza statica indipendente dalla
+// confidenza.
+function copiesForConf(conf) {
+  var t = Math.max(0, Math.min(100, conf)) / 100;
+  return Math.round(1 + (1 - t) * 6); // 1 copia a 100% conf. -> fino a 7 a 0%
+}
+
+// una variante "eco" di f: stessa parola/forma/colore/confidenza, ma
+// posizione e rotazione leggermente disturbate rispetto all'originale
+// (che resta sempre la copia c=0, non disturbata).
+function jitterFrame(f, idx) {
+  var spread = 0.9; // quanto può derivare un'eco, relativo alle proprie dimensioni
+  var jx = (Math.random() - 0.5) * f.w * spread * 2;
+  var jy = (Math.random() - 0.5) * f.h * spread * 2;
+  var rotJitter = (Math.random() - 0.5) * 40; // gradi
+  return {
+    id:       f.id + "_m" + idx,
+    x:        f.x + jx,
+    y:        f.y + jy,
+    w:        f.w,
+    h:        f.h,
+    text:     f.text,
+    conf:     f.conf,
+    color:    f.color,
+    rotation: (f.rotation || 0) + rotJitter,
+  };
+}
+
 // ── MAIN LOOP ─────────────────────────────────────────────
 var frames   = data.frames;
 var nText    = 0;
@@ -233,29 +272,32 @@ for (var i = 0; i < frames.length; i++) {
   var f  = frames[i];
 
   if (f.w <= 0 || f.h <= 0) { nSkipped++; continue; }
+  if (!f.text || f.text.replace(/\s/g,"") === "") { nSkipped++; continue; }
 
-  var az = arizonaFromConf(f.conf);
+  var az     = arizonaFromConf(f.conf);
+  var copies = copiesForConf(f.conf);
 
-  if (az === null) {
-    // conf < 30 → forma geometrica
-    if (!f.text || f.text.replace(/\s/g,"") === "") { nSkipped++; continue; }
-    try {
-      makeShape(f);
-      nShapes++;
-    } catch(e) {
-      log("errore shape " + i + ": " + e.message);
-      nSkipped++;
-    }
+  for (var c = 0; c < copies; c++) {
+    var variant = (c === 0) ? f : jitterFrame(f, c);
 
-  } else {
-    // conf >= 30 → testo
-    if (!f.text || f.text.replace(/\s/g,"") === "") { nSkipped++; continue; }
-    try {
-      makeOutlineText(f, az);
-      nText++;
-    } catch(e) {
-      log("errore testo " + i + ": " + e.message);
-      nSkipped++;
+    if (az === null) {
+      // conf < 30 → forma geometrica
+      try {
+        makeShape(variant);
+        nShapes++;
+      } catch(e) {
+        log("errore shape " + i + "." + c + ": " + e.message);
+        nSkipped++;
+      }
+    } else {
+      // conf >= 30 → testo
+      try {
+        makeOutlineText(variant, az);
+        nText++;
+      } catch(e) {
+        log("errore testo " + i + "." + c + ": " + e.message);
+        nSkipped++;
+      }
     }
   }
 }
