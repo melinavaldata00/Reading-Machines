@@ -257,18 +257,23 @@ function copiesForConf(conf) {
   return Math.round(1 + (1 - t) * 6); // 1 copia a 100% conf. -> fino a 7 a 0%
 }
 
-// una variante "eco" di f: stessa parola/forma/colore/confidenza, ma
-// posizione e rotazione leggermente disturbate rispetto all'originale
-// (che resta sempre la copia c=0, non disturbata).
+// una variante "eco" di f: stessa parola/forma/colore/confidenza, sulla
+// STESSA riga dell'originale (stessa y) -- le copie si susseguono in
+// orizzontale, alternando a destra/sinistra della parola originale,
+// invece di scivolare anche in verticale come prima. Si legge come una
+// ripetizione in fila ("parola parola parola parola") invece di uno
+// sciame sparso sulla pagina. Solo un lieve tremore di rotazione resta,
+// per non renderle un copia-incolla troppo meccanico.
 function jitterFrame(f, idx) {
-  var spread = 0.9; // quanto può derivare un'eco, relativo alle proprie dimensioni
-  var jx = (Math.random() - 0.5) * f.w * spread * 2;
-  var jy = (Math.random() - 0.5) * f.h * spread * 2;
-  var rotJitter = (Math.random() - 0.5) * 40; // gradi
+  var gap  = f.w * 0.25; // spazio tra una copia e la successiva sulla riga
+  var step = Math.ceil(idx / 2);
+  var dir  = (idx % 2 === 1) ? 1 : -1; // alterna: 1=destra, 2=sinistra, 3=destra, ...
+  var x    = f.x + dir * step * (f.w + gap);
+  var rotJitter = (Math.random() - 0.5) * 10; // gradi -- solo un lieve tremore
   return {
     id:       f.id + "_m" + idx,
-    x:        f.x + jx,
-    y:        f.y + jy,
+    x:        x,
+    y:        f.y, // stessa riga dell'originale, mai spostata in verticale
     w:        f.w,
     h:        f.h,
     text:     f.text,
