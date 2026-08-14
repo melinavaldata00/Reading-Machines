@@ -27,9 +27,13 @@
     page size — a message at the end tells you if that happened.
   - The four "arizona" fonts referenced by the export (ABCArizonaSerif,
     ABCArizonaText, ABCArizonaMix, ABCArizonaSans — Trial cuts) must be
-    installed and active for the styling to apply. If a font isn't found,
-    the frame is still created and threaded, just left in InDesign's
-    default font — the end-of-run summary lists which words were affected.
+    installed and active for the styling to apply. If one isn't found, the
+    word falls back to ABC Gaisyr (sized up noticeably so it still reads as
+    intentional) if that's installed, or InDesign's own default font as a
+    last resort — the end-of-run summary lists which words were affected,
+    and by which fallback.
+  - Every word frame is forced fully opaque, regardless of what the JSON's
+    opacity value says.
   - Everything happens inside a single undo step (Edit > Undo once to
     remove the whole thing).
 */
@@ -52,6 +56,8 @@
   // ── base typographic scale ─────────────────────────────────────────
   var BASE_SIZE = 12;              // pt — "arizona.size" is an offset from this
   var MAX_PAGE_DIM = 15000;        // pt — safety margin under InDesign's page-size ceiling
+  var FALLBACK_FONT = "ABC Gaisyr";      // used when a word's own ABCArizona* font isn't installed
+  var FALLBACK_SIZE_BOOST = 1.75;        // how much bigger that fallback text renders
 
   function log(msg) { $.writeln("[ocr-skeleton-import] " + msg); }
 
@@ -159,6 +165,7 @@
     var missingFonts = {};
     var order = [];
     var colorCache = {}; // hex -> swatch, so repeated colours reuse one swatch instead of duplicating
+    var fallbackFontCount = 0; // how many words landed on the Gaisyr fallback instead of their real Arizona font
 
     for (var i = 0; i < data.frames.length; i++) {
       var fr = data.frames[i];
@@ -185,6 +192,19 @@
 
         if (fontName && !applyFontSafe(tr, fontName)) {
           missingFonts[fontName] = (missingFonts[fontName] || 0) + 1;
+          // the ABCArizona* trial fonts this export is styled for often
+          // aren't installed -- rather than leave that text in whatever
+          // generic default InDesign happens to substitute, fall back to
+          // ABC Gaisyr (used everywhere else in this project, much more
+          // likely to actually be installed) and size it up noticeably so
+          // it still reads as an intentional, legible word rather than a
+          // dim, unstyled placeholder next to the words that did get
+          // their real Arizona styling.
+          if (applyFontSafe(tr, FALLBACK_FONT)) {
+            tr.pointSize = tr.pointSize * FALLBACK_SIZE_BOOST;
+            if (ar.leading !== undefined) tr.leading = tr.pointSize * (ar.leading / 100);
+            fallbackFontCount++;
+          }
         }
 
         if (fr.color) {
@@ -194,11 +214,12 @@
           }
         }
 
-        if (ar.opacity !== undefined) {
-          try {
-            frame.transparencySettings.blendingSettings.opacity = ar.opacity;
-          } catch (e) {}
-        }
+        // always fully opaque -- forced unconditionally rather than trusting
+        // fr.arizona.opacity from the JSON, so this holds even against an
+        // export made before opacity was fixed on the web-tool side.
+        try {
+          frame.transparencySettings.blendingSettings.opacity = 100;
+        } catch (e) {}
       }
 
       byId[fr.id] = frame;
@@ -222,7 +243,19 @@
     var missingList = [];
     for (var k in missingFonts) missingList.push(k + " (" + missingFonts[k] + "×)");
     if (missingList.length) {
-      summary += "\n\nFont(s) not found/installed — left in default font:\n" + missingList.join("\n");
+      summary += "\n\nFont(s) not found/installed:\n" + missingList.join("\n");
+      if (fallbackFontCount) {
+        summary += "\n\n" + fallbackFontCount + " word(s) fell back to " + FALLBACK_FONT
+          + " at " + Math.round((FALLBACK_SIZE_BOOST - 1) * 100) + "% larger, so they still read"
+          + " intentionally rather than sitting in InDesign's own default font.";
+      }
+      var totalMissing = 0;
+      for (var k2 in missingFonts) totalMissing += missingFonts[k2];
+      var trueDefaultCount = totalMissing - fallbackFontCount;
+      if (trueDefaultCount > 0) {
+        summary += "\n\n" + trueDefaultCount + " word(s) — " + FALLBACK_FONT
+          + " isn't installed either — left in InDesign's own default font.";
+      }
     }
     alert(summary);
   }
