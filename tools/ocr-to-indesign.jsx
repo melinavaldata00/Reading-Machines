@@ -107,11 +107,27 @@ logFile.open("w");
 function log(msg) { logFile.writeln(msg); }
 
 // ── READ JSON ────────────────────────────────────────────
-var scriptFolder = File($.fileName).parent;
-var jsonFile     = File(scriptFolder + "/ocr-skeleton.json");
+// il tool web salva sempre come "ocr-skeleton.json" -- ma se un file con
+// quel nome esiste già nella cartella di destinazione, il browser spesso
+// lo rinomina in automatico ("ocr-skeleton (1).json", "(2)" ecc.) invece
+// di sovrascriverlo in silenzio. Invece di pretendere il nome esatto,
+// cerca qualunque "ocr-skeleton*.json" nella cartella dello script e usa
+// il più recente -- funziona sempre, indipendentemente da come il
+// browser ha effettivamente chiamato il file scaricato.
+var scriptFolder    = File($.fileName).parent;
+var jsonCandidates   = scriptFolder.getFiles("ocr-skeleton*.json");
+var jsonFile = null;
+if (jsonCandidates && jsonCandidates.length) {
+  jsonCandidates.sort(function(a, b) { return b.modified - a.modified; });
+  jsonFile = jsonCandidates[0];
+}
 
-log("json: " + jsonFile.fsName);
-if (!jsonFile.exists) { log("ERRORE: json non trovato"); logFile.close(); exit(); }
+if (!jsonFile) {
+  log("ERRORE: nessun ocr-skeleton*.json trovato in " + scriptFolder.fsName);
+  logFile.close();
+  exit();
+}
+log("json: " + jsonFile.fsName + (jsonCandidates.length > 1 ? "  (più recente di " + jsonCandidates.length + " trovati)" : ""));
 
 jsonFile.open("r");
 var data = eval("(" + jsonFile.read() + ")");
