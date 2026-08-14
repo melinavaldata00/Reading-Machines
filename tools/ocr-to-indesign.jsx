@@ -217,6 +217,35 @@ function makeOutlineText(f, az) {
   return tf;
 }
 
+// tratteggio interno alla forma, al posto di lasciarla vuota con solo il
+// contorno -- una serie di sottili barre parallele (piena opacità, non
+// trasparenza: è la spaziatura tra le barre a leggersi come texture, non
+// una dissolvenza) che attraversano il riquadro della forma, ciascuna
+// ruotata attorno al proprio centro sull'angolo di tratteggio scelto.
+// Non sono ritagliate esattamente sul profilo di cerchio/triangolo (che
+// richiederebbe operazioni booleane non affidabili via scripting), ma
+// dato lo stile volutamente impreciso/generativo di tutto il resto del
+// sistema, un piccolo sconfinamento agli angoli è coerente, non un difetto.
+function addHatchTexture(f, col, angleDeg) {
+  var cx = f.x + f.w / 2, cy = f.y + f.h / 2;
+  var diag = Math.sqrt(f.w * f.w + f.h * f.h) * 1.15; // abbastanza lunga da coprire da angolo ad angolo anche ruotata
+  var spacing = Math.max(4, Math.min(f.w, f.h) / 5);
+  var half = Math.max(f.w, f.h) / 2;
+  for (var off = -half; off <= half; off += spacing) {
+    try {
+      var ly  = cy + off - 0.45;
+      var lx  = cx - diag / 2;
+      var bar = page.rectangles.add();
+      bar.geometricBounds = [ly, lx, ly + 0.9, lx + diag];
+      bar.fillColor   = col;
+      bar.strokeColor = doc.swatches.itemByName("None");
+      bar.transparencySettings.blendingSettings.opacity = 100;
+      bar.rotationAngle = angleDeg;
+      bar.label = "ocr_hatch_" + f.id;
+    } catch (e) {}
+  }
+}
+
 function makeShape(f) {
   var kind  = shapeFromText(f.text);
   var shape;
@@ -235,10 +264,16 @@ function makeShape(f) {
   // era: contorno verde fisso, spessore 0.75, opacità 8% (praticamente
   // invisibile). Ora usa il colore campionato di questa stessa parola,
   // uno spessore più marcato e piena opacità, come per il testo.
+  var col = colorForFrame(f);
   shape.fillColor   = doc.swatches.itemByName("None");
-  shape.strokeColor = colorForFrame(f);
+  shape.strokeColor = col;
   shape.strokeWeight = 2;
   shape.transparencySettings.blendingSettings.opacity = 100;
+
+  // texture interna invece di un contorno vuoto -- angolo alternato per
+  // tipo di forma, così la pagina non ha tutto lo stesso verso di tratteggio.
+  var hatchAngle = (kind === "triangle") ? -45 : 45;
+  addHatchTexture(f, col, hatchAngle);
 
   applyRotation(shape, f.rotation);
   shape.label = "ocr_shape_" + f.id + "_conf" + f.conf;
