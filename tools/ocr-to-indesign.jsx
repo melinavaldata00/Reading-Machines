@@ -96,17 +96,17 @@ function arizonaFromConf(conf) {
 }
 
 // ── SHAPE TYPE from first char + word id ──────────────────
-// prima: solo 3 forme possibili (cerchio/triangolo/rettangolo), una per
-// ogni parola in base alla sola lettera iniziale. Ora ogni gruppo di
-// lettere ha più varianti (tondeggianti/appuntite/squadrate), scelte a
-// rotazione tramite l'id della parola così anche parole con la stessa
-// lettera iniziale non escono sempre con la stessa forma identica.
+// solo 5 forme ammesse: cerchio, triangolo, diamante, esagono, stella
+// (niente più rettangolo/pentagono). Ogni gruppo di lettere pesca da un
+// sottoinsieme di queste 5, scelto a rotazione tramite l'id della parola
+// così anche parole con la stessa lettera iniziale non escono sempre
+// con la stessa forma identica.
 function shapeFromText(txt, id) {
   var c = (txt + "").replace(/^\s+/, "").charAt(0).toUpperCase();
   var groups = {
-    round:   ["circle", "hexagon", "pentagon"],
-    pointed: ["triangle", "star", "diamond"],
-    square:  ["rect", "diamond", "hexagon"],
+    round:   ["circle", "hexagon"],
+    pointed: ["triangle", "star"],
+    square:  ["diamond", "hexagon"],
   };
   var group;
   if ("O0CQDGU".indexOf(c) >= 0) group = groups.round;
@@ -116,18 +116,16 @@ function shapeFromText(txt, id) {
   return group[idx];
 }
 
-// crea la page item giusta per ogni kind. cerchio e rettangolo hanno
-// costruttori dedicati; tutte le altre varianti sono poligoni regolari
-// (o a stella), il cui numero di lati/inset va impostato nelle
+// crea la page item giusta per ogni kind. il cerchio ha un costruttore
+// dedicato; triangolo/diamante/esagono/stella sono tutti poligoni
+// regolari (o a stella), il cui numero di lati/inset va impostato nelle
 // polygonPreferences del documento PRIMA di chiamare polygons.add() --
 // è l'unico modo scriptabile per controllarne la forma in InDesign.
 function buildShapeItem(kind) {
   if (kind === "circle") return page.ovals.add();
-  if (kind === "rect")   return page.rectangles.add();
   var sides = 3, inset = 0;
   if (kind === "triangle") { sides = 3; inset = 0; }
   if (kind === "diamond")  { sides = 4; inset = 0; }
-  if (kind === "pentagon") { sides = 5; inset = 0; }
   if (kind === "hexagon")  { sides = 6; inset = 0; }
   if (kind === "star")     { sides = 5; inset = 45; }
   doc.polygonPreferences.polygonNumberOfSides = sides;
