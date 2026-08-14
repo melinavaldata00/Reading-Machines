@@ -5,7 +5,7 @@
 //  90-100  ABC Favorit Regular     · colore campionato dall'immagine originale · grande      · 100%
 //  60-89   ABC Gaisyr Mono Regular · colore campionato dall'immagine originale · medio-grande· 100%
 //  30-59   ABC Gaisyr Mono Regular · colore campionato dall'immagine originale · medio       · 100%
-//  0-29    forma geometrica        · colore campionato dall'immagine originale · outline     · 100%
+//  0-29    forma geometrica        · colore campionato dall'immagine originale · grande/piena· 55%
 //
 //  Il colore non è più una palette fissa (nero/blu/rosso/verde) -- ogni
 //  frame esportato da position-zero.html porta il proprio "color" (hex),
@@ -217,63 +217,42 @@ function makeOutlineText(f, az) {
   return tf;
 }
 
-// tratteggio interno alla forma, al posto di lasciarla vuota con solo il
-// contorno -- una serie di sottili barre parallele (piena opacità, non
-// trasparenza: è la spaziatura tra le barre a leggersi come texture, non
-// una dissolvenza) che attraversano il riquadro della forma, ciascuna
-// ruotata attorno al proprio centro sull'angolo di tratteggio scelto.
-// Non sono ritagliate esattamente sul profilo di cerchio/triangolo (che
-// richiederebbe operazioni booleane non affidabili via scripting), ma
-// dato lo stile volutamente impreciso/generativo di tutto il resto del
-// sistema, un piccolo sconfinamento agli angoli è coerente, non un difetto.
-function addHatchTexture(f, col, angleDeg) {
-  var cx = f.x + f.w / 2, cy = f.y + f.h / 2;
-  var diag = Math.sqrt(f.w * f.w + f.h * f.h) * 1.15; // abbastanza lunga da coprire da angolo ad angolo anche ruotata
-  var spacing = Math.max(4, Math.min(f.w, f.h) / 5);
-  var half = Math.max(f.w, f.h) / 2;
-  for (var off = -half; off <= half; off += spacing) {
-    try {
-      var ly  = cy + off - 0.45;
-      var lx  = cx - diag / 2;
-      var bar = page.rectangles.add();
-      bar.geometricBounds = [ly, lx, ly + 0.9, lx + diag];
-      bar.fillColor   = col;
-      bar.strokeColor = doc.swatches.itemByName("None");
-      bar.transparencySettings.blendingSettings.opacity = 100;
-      bar.rotationAngle = angleDeg;
-      bar.label = "ocr_hatch_" + f.id;
-    } catch (e) {}
-  }
-}
+// forme grandi e piene, ispirate al riferimento fornito (blob grigi
+// sovrapposti di un poster) -- non più piccoli contorni tratteggiati
+// della sola area della parola, ma blocchi ingranditi, centrati sullo
+// stesso punto del box originale, così si accavallano con le parole/
+// forme vicine invece di restare isolati ciascuno nel proprio riquadro.
+var SHAPE_SCALE = 3.2; // quanto più grande della sua parola originale
+// opacità volutamente non al 100% qui -- a differenza del testo (dove il
+// 100% fisso risolveva un bug di leggibilità), qui la trasparenza è ciò
+// che fa leggere la sovrapposizione tra forme come strati, non come un
+// blocco opaco che ne nasconde un altro.
+var SHAPE_OPACITY = 55;
 
 function makeShape(f) {
-  var kind  = shapeFromText(f.text);
+  var kind = shapeFromText(f.text);
   var shape;
+
+  var cx = f.x + f.w / 2, cy = f.y + f.h / 2;
+  var sw = f.w * SHAPE_SCALE, sh = f.h * SHAPE_SCALE;
+  var sx = cx - sw / 2, sy = cy - sh / 2;
 
   if (kind === "circle") {
     shape = page.ovals.add();
-    shape.geometricBounds = [f.y, f.x, f.y + f.h, f.x + f.w];
   } else if (kind === "triangle") {
     shape = page.polygons.add({numberOfSides: 3});
-    shape.geometricBounds = [f.y, f.x, f.y + f.h, f.x + f.w];
   } else {
     shape = page.rectangles.add();
-    shape.geometricBounds = [f.y, f.x, f.y + f.h, f.x + f.w];
   }
+  shape.geometricBounds = [sy, sx, sy + sh, sx + sw];
 
   // era: contorno verde fisso, spessore 0.75, opacità 8% (praticamente
-  // invisibile). Ora usa il colore campionato di questa stessa parola,
-  // uno spessore più marcato e piena opacità, come per il testo.
-  var col = colorForFrame(f);
-  shape.fillColor   = doc.swatches.itemByName("None");
-  shape.strokeColor = col;
-  shape.strokeWeight = 2;
-  shape.transparencySettings.blendingSettings.opacity = 100;
-
-  // texture interna invece di un contorno vuoto -- angolo alternato per
-  // tipo di forma, così la pagina non ha tutto lo stesso verso di tratteggio.
-  var hatchAngle = (kind === "triangle") ? -45 : 45;
-  addHatchTexture(f, col, hatchAngle);
+  // invisibile), poi contorno pieno + tratteggio interno. Ora è la forma
+  // stessa a essere piena (nessun contorno), nel colore campionato di
+  // questa parola.
+  shape.fillColor    = colorForFrame(f);
+  shape.strokeColor  = doc.swatches.itemByName("None");
+  shape.transparencySettings.blendingSettings.opacity = SHAPE_OPACITY;
 
   applyRotation(shape, f.rotation);
   shape.label = "ocr_shape_" + f.id + "_conf" + f.conf;
