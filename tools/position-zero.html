@@ -380,6 +380,7 @@ body.stage-results #export-section{ display: flex; opacity: 1; }
       <tr><td>frames[].conf</td><td>OCR confidence, 0–100</td></tr>
       <tr><td>frames[].arizona</td><td>font / size offset / tracking / leading % / opacity % for this word, chosen from its confidence</td></tr>
       <tr><td>frames[].thread_next</td><td>id of the next frame in reading order — used to thread the text frames together</td></tr>
+      <tr><td>frames[].color</td><td>average colour of that word's own patch in the original image, as "#rrggbb" — applied as the text colour on import</td></tr>
     </table>
 
     <h3>how to run the import script</h3>
@@ -517,7 +518,56 @@ function applyImage(img, displayName) {
   document.getElementById('btn-png').disabled = true;
   document.body.classList.add('stage-image');
   document.body.classList.remove('stage-results');
+  colorCanvas = null; // drop any cached sampling canvas from a previous image
   fit(); draw();
+}
+
+// ── original-image colour sampling (for the InDesign re-import) ────────
+// The on-screen canvas gets redrawn with whatever visualization mode is
+// active (skeleton lines, palette recolors, etc.), so it can't be used to
+// read the source photo's real colours back out. This keeps a separate,
+// untouched offscreen copy of the raw image at native resolution, built
+// once per loaded image and reused for every word box.
+let colorCanvas = null;
+function getColorCanvas() {
+  if (colorCanvas || !P.img) return colorCanvas;
+  colorCanvas = document.createElement('canvas');
+  colorCanvas.width = P.W;
+  colorCanvas.height = P.H;
+  colorCanvas.getContext('2d').drawImage(P.img, 0, 0, P.W, P.H);
+  return colorCanvas;
+}
+
+// average RGB of a word's own box in the untouched source image, as a
+// "#rrggbb" hex string — this is what lets the InDesign script tint each
+// rebuilt text frame back to roughly the colour it had in the photograph,
+// instead of everything coming out flat black.
+function sampleAvgColorHex(nx, ny, nw, nh) {
+  const cc = getColorCanvas();
+  if (!cc) return null;
+  const bx = Math.max(0, Math.round(nx * P.W));
+  const by = Math.max(0, Math.round(ny * P.H));
+  const bw = Math.max(1, Math.min(P.W - bx, Math.round(nw * P.W)));
+  const bh = Math.max(1, Math.min(P.H - by, Math.round(nh * P.H)));
+  let data;
+  try {
+    data = cc.getContext('2d').getImageData(bx, by, bw, bh).data;
+  } catch (e) {
+    return null; // e.g. a tainted canvas from a cross-origin gallery image
+  }
+  let r = 0, g = 0, b = 0, n = 0;
+  // sampling every pixel of a large word box is unnecessary work for an
+  // average — a stride keeps this fast even on big scans without any
+  // real loss of accuracy.
+  const stride = data.length > 4000 ? 4 * Math.ceil(Math.sqrt(data.length / 4000)) : 4;
+  for (let i = 0; i < data.length; i += stride) {
+    r += data[i]; g += data[i + 1]; b += data[i + 2];
+    n++;
+  }
+  if (!n) return null;
+  r = Math.round(r / n); g = Math.round(g / n); b = Math.round(b / n);
+  const hex = v => v.toString(16).padStart(2, '0');
+  return '#' + hex(r) + hex(g) + hex(b);
 }
 
 function load(f) {
@@ -857,6 +907,10 @@ document.getElementById('btn-json').addEventListener('click', () => {
       block:       b.blockIdx,
       thread_next: i+1,
       arizona:     arizonaFromConf(b.conf),
+      // average colour of this word's own patch in the original, untouched
+      // source image -- lets the InDesign script tint the rebuilt text back
+      // toward its real colour instead of defaulting to flat black.
+      color:       sampleAvgColorHex(b.nx, b.ny, b.nw, b.nh),
     };
   });
   if (frames.length) frames[frames.length-1].thread_next = null;

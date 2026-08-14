@@ -6,7 +6,8 @@
   the recognised layout in InDesign: one text frame per recognised word,
   positioned / rotated / sized exactly as computed in the browser, with
   font, tracking, leading and opacity driven by the OCR confidence value,
-  and all frames threaded in reading order.
+  text coloured from that word's own average colour in the original
+  source image, and all frames threaded in reading order.
 
   HOW TO RUN
   ----------
@@ -75,6 +76,48 @@
     }
   }
 
+  // ── colour: each frame's exported "#rrggbb" is the average colour of
+  //    that word's own patch in the original source image (sampled by the
+  //    web tool before export) — applying it here is what lets the rebuilt
+  //    layout keep the photo's colours instead of defaulting to flat black.
+  function hexToRgb(hex) {
+    if (!hex) return null;
+    var m = String(hex).replace("#", "");
+    if (m.length !== 6) return null;
+    var r = parseInt(m.substring(0, 2), 16);
+    var g = parseInt(m.substring(2, 4), 16);
+    var b = parseInt(m.substring(4, 6), 16);
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+    return [r, g, b];
+  }
+
+  function getColorSwatch(doc, cache, hex) {
+    var rgb = hexToRgb(hex);
+    if (!rgb) return null;
+    if (cache[hex]) return cache[hex];
+
+    var name = "OCR " + hex.toUpperCase();
+    var swatch = null;
+    try {
+      var existing = doc.colors.itemByName(name);
+      if (existing.isValid) swatch = existing;
+    } catch (e) {}
+    if (!swatch) {
+      try {
+        swatch = doc.colors.add({
+          model: ColorModel.PROCESS,
+          space: ColorSpace.RGB,
+          colorValue: rgb,
+          name: name
+        });
+      } catch (e) {
+        return null;
+      }
+    }
+    cache[hex] = swatch;
+    return swatch;
+  }
+
   function main() {
     var raw = pickJsonFile();
     if (!raw) { return; }
@@ -115,6 +158,7 @@
     var byId = {};
     var missingFonts = {};
     var order = [];
+    var colorCache = {}; // hex -> swatch, so repeated colours reuse one swatch instead of duplicating
 
     for (var i = 0; i < data.frames.length; i++) {
       var fr = data.frames[i];
@@ -141,6 +185,13 @@
 
         if (fontName && !applyFontSafe(tr, fontName)) {
           missingFonts[fontName] = (missingFonts[fontName] || 0) + 1;
+        }
+
+        if (fr.color) {
+          var swatch = getColorSwatch(doc, colorCache, fr.color);
+          if (swatch) {
+            try { tr.fillColor = swatch; } catch (e) {}
+          }
         }
 
         if (ar.opacity !== undefined) {
