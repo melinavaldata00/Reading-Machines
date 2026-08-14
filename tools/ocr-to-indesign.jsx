@@ -100,13 +100,14 @@ function arizonaFromConf(conf) {
 // (niente più rettangolo/pentagono). Ogni gruppo di lettere pesca da un
 // sottoinsieme di queste 5, scelto a rotazione tramite l'id della parola
 // così anche parole con la stessa lettera iniziale non escono sempre
-// con la stessa forma identica.
+// con la stessa forma identica. Diamante ed esagono compaiono più volte
+// in ogni gruppo così da uscire più spesso delle altre tre forme.
 function shapeFromText(txt, id) {
   var c = (txt + "").replace(/^\s+/, "").charAt(0).toUpperCase();
   var groups = {
-    round:   ["circle", "hexagon"],
-    pointed: ["triangle", "star"],
-    square:  ["diamond", "hexagon"],
+    round:   ["hexagon", "circle", "hexagon"],
+    pointed: ["triangle", "diamond", "star", "diamond"],
+    square:  ["diamond", "hexagon", "diamond", "hexagon"],
   };
   var group;
   if ("O0CQDGU".indexOf(c) >= 0) group = groups.round;
