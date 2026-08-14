@@ -555,17 +555,38 @@ function sampleAvgColorHex(nx, ny, nw, nh) {
   } catch (e) {
     return null; // e.g. a tainted canvas from a cross-origin gallery image
   }
-  let r = 0, g = 0, b = 0, n = 0;
   // sampling every pixel of a large word box is unnecessary work for an
   // average — a stride keeps this fast even on big scans without any
   // real loss of accuracy.
   const stride = data.length > 4000 ? 4 * Math.ceil(Math.sqrt(data.length / 4000)) : 4;
+
+  // a word's own bounding box is mostly its paper/background, not ink —
+  // letters typically cover a small fraction of their own box. A plain,
+  // unweighted average gets swamped by that background and washes every
+  // sampled colour out to a near-white, practically invisible tint once
+  // applied as text colour on a white InDesign page. Weighting each pixel
+  // by how dark it is (squared, to push further toward the ink and away
+  // from the blend) recovers the actual ink colour instead.
+  let wr = 0, wg = 0, wb = 0, wSum = 0;
+  let fr = 0, fg = 0, fb = 0, n = 0;
   for (let i = 0; i < data.length; i += stride) {
-    r += data[i]; g += data[i + 1]; b += data[i + 2];
-    n++;
+    const pr = data[i], pg = data[i + 1], pb = data[i + 2];
+    const darkness = Math.max(0, 1 - (pr + pg + pb) / (3 * 255));
+    const weight = darkness * darkness;
+    wr += pr * weight; wg += pg * weight; wb += pb * weight; wSum += weight;
+    fr += pr; fg += pg; fb += pb; n++;
   }
   if (!n) return null;
-  r = Math.round(r / n); g = Math.round(g / n); b = Math.round(b / n);
+
+  let r, g, b;
+  if (wSum > n * 0.02) { // enough real ink found in this box to trust the weighted colour
+    r = wr / wSum; g = wg / wSum; b = wb / wSum;
+  } else { // essentially blank box (no meaningful ink) -- fall back to the plain average
+    r = fr / n; g = fg / n; b = fb / n;
+  }
+  r = Math.round(Math.min(255, Math.max(0, r)));
+  g = Math.round(Math.min(255, Math.max(0, g)));
+  b = Math.round(Math.min(255, Math.max(0, b)));
   const hex = v => v.toString(16).padStart(2, '0');
   return '#' + hex(r) + hex(g) + hex(b);
 }
