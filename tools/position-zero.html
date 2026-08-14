@@ -892,11 +892,29 @@ document.getElementById('btn-svg').addEventListener('click',()=>{
 });
 
 // ── arizona font mapping ──────────────────────────────────
+// size offsets used to only span -4..0 (10..12pt out of a 12pt base) --
+// barely any visible size difference between a confidently-read word and
+// a barely-legible one, so the rebuilt InDesign layout read as visually
+// flat regardless of confidence. Widened to a real big/small contrast:
+// confident words now come out noticeably large and bold, uncertain ones
+// noticeably small and thin, so the page reads as a composition instead
+// of a uniform grid of same-sized boxes.
 function arizonaFromConf(conf) {
-  if (conf >= 90) return { font: 'ABCArizonaSerif-Regular-Trial',  size: 0,  tracking: 0,   leading: 120, opacity: 100 };
-  if (conf >= 60) return { font: 'ABCArizonaText-Light-Trial',     size: 0,  tracking: 80,  leading: 140, opacity: 80  };
-  if (conf >= 30) return { font: 'ABCArizonaMix-Thin-Trial',       size: -2, tracking: 300, leading: 170, opacity: 60  };
-  return           { font: 'ABCArizonaSans-Thin-Trial',            size: -4, tracking: 600, leading: 220, opacity: 40  };
+  if (conf >= 90) return { font: 'ABCArizonaSerif-Regular-Trial',  size: 20,  tracking: 0,   leading: 110, opacity: 100 };
+  if (conf >= 60) return { font: 'ABCArizonaText-Light-Trial',     size: 2,   tracking: 60,  leading: 130, opacity: 85  };
+  if (conf >= 30) return { font: 'ABCArizonaMix-Thin-Trial',       size: -5,  tracking: 260, leading: 165, opacity: 55  };
+  return           { font: 'ABCArizonaSans-Thin-Trial',            size: -7,  tracking: 550, leading: 210, opacity: 35  };
+}
+
+// how much to grow/shrink a word's own bounding box based on confidence,
+// on top of whatever the "scale" transform slider already does -- this is
+// what makes the frame itself (not just the type inside it) bigger or
+// smaller, so the amplified font sizes above have room to actually show.
+function confBoxScale(conf) {
+  if (conf >= 90) return 1.6;
+  if (conf >= 60) return 1.15;
+  if (conf >= 30) return 0.75;
+  return 0.45;
 }
 
 // ── export json ───────────────────────────────────────────
@@ -909,7 +927,7 @@ document.getElementById('btn-json').addEventListener('click', () => {
     const bw = b.nw*P.W, bh = b.nh*P.H;
     const cx = b.ncx*P.W, cy = b.ncy*P.H;
     const rot = (1-b.cN)*tR*Math.PI*0.5;
-    const sc  = tS===0 ? 1 : 0.3+b.aN*(0.7+tS*1.2);
+    const sc  = (tS===0 ? 1 : 0.3+b.aN*(0.7+tS*1.2)) * confBoxScale(b.conf);
     const md  = Math.min(P.W,P.H)*0.14*tSh;
     const dx  = (1-b.cN)*md*(b.ncx>.5?1:-1);
     const dy  = (1-b.cN)*md*(b.ncy>.5?1:-1);
