@@ -284,6 +284,28 @@ input[type=range]::-webkit-slider-thumb {
      close icons) also gets more breathing room on touch */
   .b { padding: 8px 12px; }
   #edit-panel .ep-close { font-size: 20px; padding: 4px; }
+
+  /* the timeline as a thin horizontal bar squeezed along the bottom edge
+     is awkward to hit precisely on iPad -- moved to a vertical strip
+     down the side of the canvas instead, where it has the canvas's full
+     height to work with rather than one cramped row. */
+  #left { flex-direction: row; }
+  #timeline-bar {
+    flex-direction: column;
+    width: 76px;
+    border-top: none;
+    border-left: 1px solid var(--text-faint);
+    padding: 18px 10px;
+    gap: 14px;
+  }
+  #timeline-label { min-width: 0; text-align: center; white-space: normal; }
+  #timeline-pos   { min-width: 0; text-align: center; }
+  #timeline-slider {
+    flex: 1;
+    width: 6px;
+    height: auto;
+    -webkit-appearance: slider-vertical;
+  }
 }
 
 #stats {
