@@ -217,10 +217,15 @@ function extractContours(imageData, bx, by, bw, bh, fullW, degradation = 0, base
 
   const dots = [];
   const baseStep = Math.max(3, Math.floor(Math.min(bw, bh) / 12));
-  const step = Math.max(3, Math.round(baseStep * (1 + degradation * 0.2)));
+  // grid spacing and dropout now grow more slowly with degradation (was
+  // *0.2 / cap 0.14) so a well-recognised word's dot pattern stays dense
+  // and legible instead of thinning out as soon as its letterforms get
+  // visually busy — the sparse, dropout-heavy end is reserved for
+  // genuinely low-confidence/high-complexity words now.
+  const step = Math.max(3, Math.round(baseStep * (1 + degradation * 0.12)));
   const offX = Math.floor(Math.random() * step);
   const offY = Math.floor(Math.random() * step);
-  const dropout = Math.min(0.14, degradation * 0.028);
+  const dropout = Math.min(0.10, degradation * 0.022);
   const r = step * 0.36;
 
   for (let y = -offY; y < bh; y += step) {
@@ -253,10 +258,10 @@ function extractSilhouette(imageData, bx, by, bw, bh, fullW, degradation = 0, ba
   };
 
   const baseStep = Math.max(3, Math.floor(Math.min(bw, bh) / 12));
-  const step = Math.max(3, Math.round(baseStep * (1 + degradation * 0.2)));
+  const step = Math.max(3, Math.round(baseStep * (1 + degradation * 0.12)));
   const offX = Math.floor(Math.random() * step);
   const offY = Math.floor(Math.random() * step);
-  const dropout = Math.min(0.1, degradation * 0.018);
+  const dropout = Math.min(0.06, degradation * 0.014);
   const maxR = step * 0.56;
 
   const dots = [];
@@ -381,12 +386,12 @@ function renderGroupVisual(g) {
       p.setAttribute('d', dotsToPath(silhouette));
       p.setAttribute('transform', `translate(${g.x} ${g.y})`);
       p.style.fill = g.customColor || '#000000';
-      // raised from the old 0.28/0.6 floor — the silhouette is what
-      // actually reads as a letterform, so it needs to carry more
-      // weight than the sparse edge texture on top of it. Floor now
-      // ramps with legibility too: a high-confidence word should read
-      // clearly, not sit at the same faint opacity as a barely-read one.
-      const silhouetteFloor = 0.30 + legibility * 0.55;
+      // raised again (was 0.30/0.85) — the silhouette is what actually
+      // reads as a letterform, so it needs to carry more weight than the
+      // sparse edge texture on top of it. Floor still ramps with
+      // legibility: a high-confidence word reads clearly and dark, a
+      // barely-read one stays faint rather than getting the same boost.
+      const silhouetteFloor = 0.42 + legibility * 0.50;
       p.style.fillOpacity = Math.max(silhouetteFloor, g.fill / 100) * opacity;
       p.style.stroke = 'none';
       gEl.appendChild(p);
@@ -401,13 +406,14 @@ function renderGroupVisual(g) {
       // marking on top of the word, not compete with it. Dots get a
       // soft fill of their own instead of being hollow rings (an
       // unfilled circle at full stroke opacity reads as a wiry, busy
-      // outline), and the stroke itself is toned down rather than full
-      // opacity by default.
+      // outline). Floors raised again (were 0.14/0.44 fill, 0.35/0.75
+      // stroke) so the edge texture itself is more legible on top of the
+      // silhouette, not just present.
       p.style.fill = g.customColor || '#000000';
-      const texFloor = 0.14 + legibility * 0.30;
+      const texFloor = 0.22 + legibility * 0.33;
       p.style.fillOpacity = Math.max(texFloor, g.fill / 100) * opacity;
       p.style.stroke = strokeColor;
-      p.style.strokeOpacity = (0.35 + legibility * 0.4) * opacity;
+      p.style.strokeOpacity = (0.45 + legibility * 0.45) * opacity;
       p.style.strokeWidth = '0.75';
       gEl.appendChild(p);
     }
@@ -826,8 +832,11 @@ function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
     // complexity, so an easily machine-readable word could still come out
     // sparse and hard to read just because its letterforms were visually
     // busy. High conf trims degradation (denser dots, less dropout); low
-    // conf leaves it untouched.
-    const confRelief = Math.max(0, (conf - 50) / 25);
+    // conf leaves it untouched. Relief now kicks in earlier and climbs
+    // higher (was (conf-50)/25, max 2) so a confidently-read word's own
+    // visual complexity gets cancelled out almost entirely instead of
+    // still fighting through a sparse, hard-to-read pattern.
+    const confRelief = Math.max(0, (conf - 40) / 15);
     const degradation = Math.max(0, complexity + extraDegradation - confRelief);
 
     const paths     = extractContours(imgData, b.x, b.y, b.w, b.h, srcCanvas.width, degradation, localThreshold);
