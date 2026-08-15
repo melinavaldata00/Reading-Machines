@@ -399,9 +399,16 @@ function renderGroupVisual(g) {
   return gEl;
 }
 
+// ── maps each group's data object to its current rendered <g> element,
+// rebuilt on every renderState() call. Lets startDrag() find the DOM node
+// for a group without re-rendering -- see the note in onDrag()/endDrag()
+// for why that matters on touch devices.
+let groupElMap = new Map();
+
 // ── render a state's groups onto the live, visible SVG ──────
 function renderState(st) {
   svgDoc.innerHTML = '';
+  groupElMap = new Map();
   const bg = document.createElementNS(SVG_NS, 'rect');
   bg.setAttribute('x', 0); bg.setAttribute('y', 0);
   bg.setAttribute('width', S.W); bg.setAttribute('height', S.H);
@@ -410,6 +417,7 @@ function renderState(st) {
 
   st.groups.forEach(g => {
     const gEl = renderGroupVisual(g);
+    groupElMap.set(g, gEl);
 
     const hit = document.createElementNS(SVG_NS, 'rect');
     hit.setAttribute('class', 'hit');
@@ -1080,70 +1088,129 @@ function populateEditPanel(g) {
     `machine confidence: ${g.conf.toFixed(0)}%<br>shape complexity: ${(g.complexity || 0).toFixed(2)}${extra}`;
 }
 
+// lightweight alternative to a full draw() for reflecting the current
+// selection -- updates the existing, still-attached <g> elements in place
+// instead of tearing down and rebuilding the whole SVG. Needed because a
+// full redraw destroys and recreates the very node a touch just started
+// on, which iOS/iPadOS reads as the touch being cancelled (see startDrag).
+function refreshSelectionVisuals() {
+  document.querySelectorAll('.outline-group.selected').forEach(el => {
+    el.classList.remove('selected');
+    const sel = el.querySelector('.sel-outline');
+    if (sel) sel.remove();
+  });
+  S.selectedGroups.forEach(sg => {
+    const el = groupElMap.get(sg);
+    if (!el) return;
+    el.classList.add('selected');
+    const sel = document.createElementNS(SVG_NS, 'rect');
+    sel.setAttribute('class', 'sel-outline');
+    sel.setAttribute('x', sg.x - 3);
+    sel.setAttribute('y', sg.y - 3);
+    sel.setAttribute('width', sg.w + 6);
+    sel.setAttribute('height', sg.h + 6);
+    el.appendChild(sel);
+  });
+}
+
 // additive=true (shift/cmd/ctrl-click): toggles g in/out of the current
 // multi-selection. additive=false: replaces the selection with just g.
-function selectGroup(g, gEl, additive) {
+// redraw=false skips the full re-render in favour of refreshSelectionVisuals()
+// -- startDrag uses this so the node under an active touch never gets torn
+// down and rebuilt mid-gesture (see its own comment for why that matters).
+function selectGroup(g, gEl, additive, redraw = true) {
   if (additive && S.selectedGroups.includes(g)) {
     S.selectedGroups = S.selectedGroups.filter(sg => sg !== g);
     S.selectedGroup = S.selectedGroups[S.selectedGroups.length - 1] || null;
     if (S.selectedGroup) populateEditPanel(S.selectedGroup);
     else document.getElementById('edit-panel').classList.remove('show');
-    draw(); // redraw so the dashed selection marquee reflects the new set immediately
+    if (redraw) draw(); else refreshSelectionVisuals();
     return;
   }
   if (!additive) S.selectedGroups = [];
   S.selectedGroups.push(g);
   S.selectedGroup = g;
   populateEditPanel(g);
-  draw(); // redraw so the dashed selection marquee appears immediately, not just on next drag
+  if (redraw) draw(); else refreshSelectionVisuals();
 }
 
 function startDrag(e, g, gEl) {
   e.preventDefault();
   e.stopPropagation();
-  const additive = e.shiftKey || e.metaKey || e.ctrlKey;
-  if (additive) {
-    selectGroup(g, gEl, true);
-  } else if (!(S.selectedGroups.length > 1 && S.selectedGroups.includes(g))) {
-    // fresh single selection — unless g is already part of a larger
-    // multi-selection, in which case a plain drag moves the whole group
-    selectGroup(g, gEl, false);
-  }
-  if (!S.selectedGroups.includes(g)) return; // just toggled off — no drag
 
   // keep this pointer's events routed to us even once the finger moves
   // off the original hit target -- without capture, a fast touch drag on
   // iPad can otherwise "escape" the element and stop delivering moves.
+  // Set BEFORE selectGroup(), which (with redraw=false, below) no longer
+  // tears down gEl -- but if it ever did, capture would be silently
+  // dropped the instant its element left the document.
   if (e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
+
+  const additive = e.shiftKey || e.metaKey || e.ctrlKey;
+  if (additive) {
+    selectGroup(g, gEl, true, false);
+  } else if (!(S.selectedGroups.length > 1 && S.selectedGroups.includes(g))) {
+    // fresh single selection — unless g is already part of a larger
+    // multi-selection, in which case a plain drag moves the whole group
+    selectGroup(g, gEl, false, false);
+  }
+  if (!S.selectedGroups.includes(g)) return; // just toggled off — no drag
 
   const scaleX = stage.clientWidth  / S.W;
   const scaleY = stage.clientHeight / S.H;
   dragState = {
-    groups: S.selectedGroups.map(sg => ({
-      g: sg, origX: sg.x, origY: sg.y, origCx: sg.cx, origCy: sg.cy,
-    })),
+    groups: S.selectedGroups.map(sg => {
+      const el = groupElMap.get(sg);
+      return {
+        g: sg, origX: sg.x, origY: sg.y, origCx: sg.cx, origCy: sg.cy,
+        el,
+        // each element already carries its own rotate/skew/scale transform
+        // (see renderGroupVisual) -- the live preview below must compose
+        // with it, not replace it, or the element would visibly snap
+        // upright for the duration of the drag.
+        baseTransform: el ? (el.getAttribute('transform') || '') : '',
+      };
+    }),
     startX: e.clientX, startY: e.clientY,
     scaleX, scaleY,
+    dx: 0, dy: 0,
   };
   document.addEventListener('pointermove', onDrag);
   document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag); // safety net -- commits/cleans up instead of leaving dragState stuck if iOS ever cancels the gesture anyway
 }
 function onDrag(e) {
   if (!dragState) return;
   const dx = (e.clientX - dragState.startX) / dragState.scaleX;
   const dy = (e.clientY - dragState.startY) / dragState.scaleY;
+  dragState.dx = dx;
+  dragState.dy = dy;
+  // move the already-rendered elements directly via an SVG transform --
+  // NOT draw(), which wipes and rebuilds the whole SVG on every call. On
+  // touch, destroying the node an active gesture started on reads to
+  // iOS/iPadOS as the touch being cancelled, so the drag would visually
+  // select the element and then simply stop responding to further finger
+  // movement. The real x/y/cx/cy only get committed, with one real
+  // redraw, once the gesture actually ends (endDrag, below).
   dragState.groups.forEach(entry => {
-    entry.g.x  = entry.origX + dx;
-    entry.g.y  = entry.origY + dy;
-    entry.g.cx = entry.origCx + dx;
-    entry.g.cy = entry.origCy + dy;
+    if (entry.el) entry.el.setAttribute('transform', `translate(${dx},${dy}) ${entry.baseTransform}`);
   });
-  draw();
 }
 function endDrag() {
+  if (!dragState) return;
+  const { dx, dy } = dragState;
+  dragState.groups.forEach(entry => {
+    entry.g.x  = entry.origX  + dx;
+    entry.g.y  = entry.origY  + dy;
+    entry.g.cx = entry.origCx + dx;
+    entry.g.cy = entry.origCy + dy;
+    if (entry.el) entry.el.removeAttribute('transform');
+  });
   dragState = null;
   document.removeEventListener('pointermove', onDrag);
   document.removeEventListener('pointerup', endDrag);
+  document.removeEventListener('pointercancel', endDrag);
+  draw(); // single real redraw, now that the gesture is safely over
 }
 
 // ── edit panel: draggable by its header, so it can be moved off the word
