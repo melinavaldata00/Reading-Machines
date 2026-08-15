@@ -374,6 +374,13 @@ footer-note {
     own already-abstracted output — confidence usually drops a bit each time,
     which is blended with the previous reading so words don't flicker
     unpredictably between passes.</p>
+    <p>Alongside OCR, the same <b>read</b> pass also runs OpenCV in the
+    browser to trace marks, drawings, or symbols Tesseract didn't recognise
+    as words — anything left over once the text is accounted for. Each one
+    becomes its own editable outline shape (contour + light fill by
+    default), positioned exactly where it was traced in the source image,
+    and driven by the same drag / color / opacity / rotation / skew / scale
+    / disperse controls as every word.</p>
     <h3>editing a word</h3>
     <table class="field-table">
       <tr><td>show as text</td><td>renders the word as real typeset text (pick a font) instead of the dot pattern — useful for actually arranging a layout</td></tr>
@@ -520,6 +527,14 @@ footer-note {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<!-- OpenCV.js — used alongside Tesseract to trace non-text shapes (marks,
+     drawings, symbols) that OCR doesn't recognise as words, so they can be
+     shown as editable outlines instead of being ignored. Loads async; sets
+     window.__cvReady once its WASM runtime has actually finished
+     initialising (the script executing is not the same as it being ready). -->
+<script async src="https://docs.opencv.org/4.9.0/opencv.js"
+  onload="if (typeof cv !== 'undefined') { cv['onRuntimeInitialized'] = () => { window.__cvReady = true; }; }"
+  onerror="window.__cvReady = false;"></script>
 <script src="co-read.js"></script>
 </body>
 </html>

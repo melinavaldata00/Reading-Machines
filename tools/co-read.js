@@ -60,7 +60,7 @@ function updateStats() {
   const st = S.timeline[S.currentIdx];
   const el = document.getElementById('stats');
   if (!st) { el.textContent = 'no document yet'; return; }
-  const nShapes = st.groups.filter(g => !g.textOverridden && effectiveConf(g) < SHAPE_THRESHOLD).length;
+  const nShapes = st.groups.filter(g => g.kind === 'shape' || (!g.textOverridden && effectiveConf(g) < SHAPE_THRESHOLD)).length;
   el.innerHTML = `
     ${st.label}<br>
     words: <b>${st.groups.length}</b> — shapes: <b>${nShapes}</b><br>
@@ -309,7 +309,23 @@ function renderGroupVisual(g) {
   // one. 0 at the shape-fallback edge, 1 at high confidence.
   const legibility = Math.max(0, Math.min(1, (conf - SHAPE_THRESHOLD) / (95 - SHAPE_THRESHOLD)));
 
-  if (g.textOverridden) {
+  if (g.kind === 'shape') {
+    // a traced outline of a visual element OCR didn't read as text --
+    // drawn as a filled+stroked path rather than the dot-degradation
+    // texture used for words, but still driven by the same
+    // customColor/customOpacity/fill fields the edit panel already writes.
+    const p = document.createElementNS(SVG_NS, 'path');
+    p.setAttribute('d', g.outlineD);
+    p.setAttribute('transform', `translate(${g.x} ${g.y})`);
+    const shapeColor = g.customColor || '#000000';
+    const shapeOpacity = (g.customOpacity !== undefined ? g.customOpacity : 100) / 100;
+    p.style.fill = shapeColor;
+    p.style.fillOpacity = (g.fill / 100) * shapeOpacity;
+    p.style.stroke = shapeColor;
+    p.style.strokeOpacity = shapeOpacity;
+    p.style.strokeWidth = '1.25';
+    gEl.appendChild(p);
+  } else if (g.textOverridden) {
     const t = document.createElementNS(SVG_NS, 'text');
     t.setAttribute('x', g.x + g.w / 2);
     t.setAttribute('y', g.y + g.h / 2);
@@ -659,6 +675,108 @@ function layoutFlow(groups) {
 }
 
 
+// ── OpenCV shape detection ───────────────────────────────────
+// Finds visual elements OCR doesn't read as words -- marks, drawings,
+// symbols -- and turns each into a group with the same shape every text
+// group has (x/y/w/h/cx/cy, rotation/scale/skew, customColor/customOpacity/
+// fill, disperseAmount, id...), so it's draggable and editable through the
+// exact same selection/edit-panel code with no special-casing needed there.
+// kind:'shape' is the one new field; renderGroupVisual() branches on it to
+// draw a traced outline instead of the OCR dot-degradation treatment.
+
+function waitForOpenCV(timeoutMs = 15000) {
+  return new Promise(resolve => {
+    if (window.__cvReady) return resolve(true);
+    if (window.__cvReady === false) return resolve(false); // load/init failed
+    const start = Date.now();
+    (function check() {
+      if (window.__cvReady) return resolve(true);
+      if (window.__cvReady === false || Date.now() - start > timeoutMs) return resolve(false);
+      setTimeout(check, 150);
+    })();
+  });
+}
+
+function detectNonTextShapes(srcCanvas, textBoxes) {
+  if (typeof cv === 'undefined' || !cv.Mat) return [];
+
+  const src = cv.imread(srcCanvas);
+  const gray = new cv.Mat();
+  const bin = new cv.Mat();
+  const contours = new cv.MatVector();
+  const hierarchy = new cv.Mat();
+  const shapes = [];
+
+  try {
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    // inverted so dark marks on a light page come out as foreground
+    // (white) blobs for findContours to trace -- same "what's dark is the
+    // subject" assumption the OCR pre-processing already makes.
+    cv.threshold(gray, bin, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+    cv.findContours(bin, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    const pageArea = srcCanvas.width * srcCanvas.height;
+    const minArea  = pageArea * 0.0003; // ignore speckle/noise
+    const maxArea  = pageArea * 0.35;   // ignore near-full-page blobs (paper edge, shadow, background)
+
+    for (let i = 0; i < contours.size(); i++) {
+      const cnt = contours.get(i);
+      const rect = cv.boundingRect(cnt);
+      const area = rect.width * rect.height;
+      let keep = area >= minArea && area <= maxArea;
+
+      // skip anything that's mostly an already-OCR'd word -- this pass is
+      // only for what's left over once text is accounted for.
+      if (keep) {
+        let textOverlap = 0;
+        for (const b of textBoxes) {
+          const ox1 = Math.max(rect.x, b.x), oy1 = Math.max(rect.y, b.y);
+          const ox2 = Math.min(rect.x + rect.width, b.x + b.w), oy2 = Math.min(rect.y + rect.height, b.y + b.h);
+          if (ox2 > ox1 && oy2 > oy1) textOverlap += (ox2 - ox1) * (oy2 - oy1);
+        }
+        keep = (textOverlap / area) <= 0.25;
+      }
+
+      if (keep) {
+        const approx = new cv.Mat();
+        const peri = cv.arcLength(cnt, true);
+        cv.approxPolyDP(cnt, approx, Math.max(1, 0.01 * peri), true);
+
+        if (approx.rows >= 3) {
+          let d = '';
+          for (let j = 0; j < approx.rows; j++) {
+            const px = approx.data32S[j * 2]     - rect.x;
+            const py = approx.data32S[j * 2 + 1] - rect.y;
+            d += (j === 0 ? 'M' : 'L') + px + ',' + py + ' ';
+          }
+          d += 'Z';
+
+          shapes.push({
+            id: S.nextGroupId++,
+            kind: 'shape',
+            text: '', conf: 100, complexity: 0, lineNum: -1,
+            originalX: rect.x, originalY: rect.y,
+            manualConf: null, textOverridden: false,
+            fill: 18, // light default fill -- distinguishes shapes from text (fill:0) at a glance, still adjustable via the same slider
+            x: rect.x, y: rect.y, w: rect.width, h: rect.height,
+            cx: rect.x + rect.width / 2, cy: rect.y + rect.height / 2,
+            paths: [], fillPaths: [], outlineD: d,
+            scale: 100, rotation: 0, skewX: 0, skewY: 0,
+            customColor: null, customOpacity: 100,
+            fontFamily: 'ABC Gaisyr', fontStyle: 'normal', disperseAmount: 0,
+          });
+        }
+        approx.delete();
+      }
+      cnt.delete();
+    }
+  } finally {
+    src.delete(); gray.delete(); bin.delete(); contours.delete(); hierarchy.delete();
+  }
+
+  return shapes;
+}
+
 // ── build new groups from a fresh OCR pass ──────────────────
 function extractGroupsFromCanvas(srcCanvas, boxes, prevGroups) {
   const ctx = srcCanvas.getContext('2d', { willReadFrequently: true });
@@ -985,6 +1103,14 @@ document.getElementById('btn-run').addEventListener('click', async () => {
 
     const groups = extractGroupsFromCanvas(canvas, boxes, null);
 
+    // run shape detection alongside OCR (same "read" action, no separate
+    // toggle) -- marks/drawings/symbols the OCR pass didn't read as words
+    // come back as their own editable outline groups.
+    prog(true, 0.85, 'tracing non-text shapes…');
+    const cvReady = await waitForOpenCV();
+    const shapes = cvReady ? detectNonTextShapes(canvas, boxes) : [];
+    groups.push(...shapes);
+
     S.timeline = [{
       kind: 'origin',
       groups: groups,
@@ -1027,6 +1153,10 @@ document.getElementById('btn-loop').addEventListener('click', async () => {
     const truthCanvas = await truthToCanvas(prevState, S.W, S.H);
     const boxes = await runOCR(truthCanvas, p => prog(true, (i + p) / n, `iter ${i + 1}/${n} — ${Math.round(p * 100)}%`));
     const newGroups = extractGroupsFromCanvas(truthCanvas, boxes, prevState.groups);
+    // the truth layer only re-renders text, so traced shapes (which aren't
+    // fed back into OCR) carry forward unchanged from the previous state,
+    // preserving any manual edits made to them
+    newGroups.push(...prevState.groups.filter(g => g.kind === 'shape'));
 
     S.timeline.push({
       kind: 'auto',
@@ -1073,8 +1203,14 @@ function populateEditPanel(g) {
   document.getElementById('ep-conf').value     = Math.round(effectiveConf(g));
   document.getElementById('ep-disperse').value = g.disperseAmount || 0;
 
+  // shapes traced from OpenCV have no OCR text to show as/font-style, so
+  // that part of the panel is hidden for them -- everything else (drag,
+  // color, opacity, rotation, skew, scale, disperse, fill) still applies,
+  // through the same fields/listeners text groups use.
+  const isShape = g.kind === 'shape';
+  document.getElementById('ep-as-text').style.display = isShape ? 'none' : '';
   document.getElementById('ep-as-text').classList.toggle('on', !!g.textOverridden);
-  document.getElementById('ep-font-controls').style.display = g.textOverridden ? 'block' : 'none';
+  document.getElementById('ep-font-controls').style.display = (!isShape && g.textOverridden) ? 'block' : 'none';
   document.querySelectorAll('#ep-font-controls .font-btn').forEach(b => {
     b.classList.toggle('on', b.dataset.font === (g.fontFamily || 'ABC Gaisyr'));
   });
@@ -1084,8 +1220,9 @@ function populateEditPanel(g) {
 
   const n = S.selectedGroups.length;
   const extra = n > 1 ? `<br>+ ${n - 1} more selected — drag / delete / front / back / style apply to all` : '';
-  document.getElementById('ep-meta').innerHTML =
-    `machine confidence: ${g.conf.toFixed(0)}%<br>shape complexity: ${(g.complexity || 0).toFixed(2)}${extra}`;
+  document.getElementById('ep-meta').innerHTML = isShape
+    ? `traced shape (not read as text by OCR)${extra}`
+    : `machine confidence: ${g.conf.toFixed(0)}%<br>shape complexity: ${(g.complexity || 0).toFixed(2)}${extra}`;
 }
 
 // lightweight alternative to a full draw() for reflecting the current
@@ -1489,6 +1626,8 @@ document.getElementById('btn-reread').addEventListener('click', async () => {
   const truthCanvas = await truthToCanvas(st, S.W, S.H);
   const boxes = await runOCR(truthCanvas, p => prog(true, p, Math.round(p * 100) + '%'));
   const newGroups = extractGroupsFromCanvas(truthCanvas, boxes, st.groups);
+  // shapes aren't part of the re-read text pass -- carry them forward as-is
+  newGroups.push(...st.groups.filter(g => g.kind === 'shape'));
 
   S.timeline.push({
     kind: 'edit',
@@ -1601,6 +1740,9 @@ document.getElementById('btn-layout').addEventListener('click', () => {
   const st = S.timeline[S.currentIdx];
   if (st) {
     st.groups.forEach(g => {
+      // shapes aren't reflowed into reading order -- they stay pinned to
+      // where they were traced in the source image, regardless of layout mode
+      if (g.kind === 'shape') return;
       g.x = S.flowLayout ? g.flowX : g.originalX;
       g.y = S.flowLayout ? g.flowY : g.originalY;
       g.cx = g.x + g.w / 2;
