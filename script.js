@@ -6,8 +6,8 @@
 const humanLines = [
     "Reading Machines is a graphic investigation",
     "into the status of writing in relation to",
-    "computational systems expploring what happens to text",
-    "once it becomes subject to machine reading,",
+    "computational systems expploring what happens",
+    "to text once it becomes subject to machine reading,",
     "processing, and recognition, and what this",
     "reveals about reading and writing as human",
     "processes.",
