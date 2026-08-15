@@ -33,8 +33,7 @@
     /* you've scrolled down into the tool pages, same gating mechanism  */
     /* used for the presenter's own fixed chrome, just inverted.        */
     body.in-presenter .docs-link,
-    body.in-presenter .info-toggle,
-    body.in-presenter .info-panel{
+    body.in-presenter .info-toggle{
       opacity:0;
       pointer-events:none;
     }
@@ -43,8 +42,9 @@
     }
 
     /* INFO — small companion to .docs-link, mirrored to the bottom-left. */
-    /* Toggles a short plain-text blurb about the project directly into   */
-    /* the white space above it -- no card, no overlay, just text.        */
+    /* Opens the same kind of modal as each tool's "how does it work"     */
+    /* guide (dark backdrop + a bordered white card), just themed to the  */
+    /* landing's own palette instead of a given tool's.                  */
     .info-toggle{
       position:fixed;
       bottom:20px;
@@ -63,33 +63,65 @@
       cursor:pointer;
       transition:background .15s ease, color .15s ease, opacity .3s ease;
     }
-    .info-toggle:hover,
-    .info-toggle.open{
+    .info-toggle:hover{
       background:#2bff00;
       color:#1f130d;
       border-color:#1f130d;
     }
-    .info-panel{
-      position:fixed;
-      bottom:64px;
-      left:20px;
-      max-width:340px;
-      font-size:14px;
-      line-height:1.5;
-      color:#1f130d;
-      z-index:89;
-      opacity:0;
-      transform:translateY(6px);
-      pointer-events:none;
-      transition:opacity .3s ease, transform .3s ease;
-    }
-    .info-panel.open{
-      opacity:1;
-      transform:translateY(0);
-    }
     @media(max-width:480px){
       .info-toggle{ bottom:14px; left:14px; padding:8px 13px; font-size:11px; }
-      .info-panel{ left:14px; right:14px; max-width:none; bottom:58px; }
+    }
+
+    .info-overlay{
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(31,19,13,.55);
+      z-index:95;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .info-overlay.show{ display:flex; }
+    .info-modal{
+      background:#ffffff;
+      border:1px solid #1f130d;
+      width:min(480px, 90vw);
+      max-height:80vh;
+      overflow-y:auto;
+      padding:22px 26px;
+      font-family:"ABC Favorit", monospace;
+    }
+    .info-modal h2{
+      font-family:"ABC Gaisyr", monospace;
+      font-size:15px;
+      letter-spacing:.04em;
+      font-weight:400;
+      margin-bottom:14px;
+    }
+    .info-modal p{
+      font-size:13px;
+      line-height:1.6;
+      color:#1f130d;
+    }
+    .info-close{
+      display:block;
+      margin:18px 0 0 auto;
+      background:none;
+      border:1px solid #1f130d;
+      border-radius:999px;
+      color:#1f130d;
+      font-family:inherit;
+      font-size:11px;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+      cursor:pointer;
+      padding:7px 14px;
+      transition:background .15s ease, color .15s ease;
+    }
+    .info-close:hover{
+      background:#2bff00;
+      border-color:#1f130d;
     }
 
     /* hero title -- same structural position as RMDocumentation's hero   */
@@ -361,19 +393,38 @@
 
   <a href="https://melinavaldata00.github.io/RMDocumentation/" class="docs-link" target="_blank" rel="noopener">DOCUMENTATION</a>
 
-  <button type="button" class="info-toggle" id="infoToggle" aria-expanded="false" aria-controls="infoPanel">INFO</button>
-  <p class="info-panel" id="infoPanel">
-    This site hosts a set of tools built on OCR and computer-vision systems. They reinterpret and manipulate the text embedded in an image, surfacing how a machine reads — and turning that reading into graphic material.
-  </p>
+  <button type="button" class="info-toggle" id="infoToggle" aria-expanded="false" aria-controls="infoOverlay">INFO</button>
+  <div class="info-overlay" id="infoOverlay">
+    <div class="info-modal">
+      <h2>about</h2>
+      <p>This site hosts a set of tools built on OCR and computer-vision systems. They reinterpret and manipulate the text embedded in an image, surfacing how a machine reads — and turning that reading into graphic material.</p>
+      <button type="button" class="info-close" id="infoClose">close</button>
+    </div>
+  </div>
   <script>
     (function(){
       var btn = document.getElementById('infoToggle');
-      var panel = document.getElementById('infoPanel');
-      if(!btn || !panel) return;
-      btn.addEventListener('click', function(){
-        var open = panel.classList.toggle('open');
-        btn.classList.toggle('open', open);
-        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      var overlay = document.getElementById('infoOverlay');
+      var closeBtn = document.getElementById('infoClose');
+      if(!btn || !overlay) return;
+
+      function openInfo(){
+        overlay.classList.add('show');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+      function closeInfo(){
+        overlay.classList.remove('show');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+
+      btn.addEventListener('click', openInfo);
+      closeBtn.addEventListener('click', closeInfo);
+      // clicking the dark backdrop (not the card itself) closes it too
+      overlay.addEventListener('click', function(e){
+        if(e.target === overlay) closeInfo();
+      });
+      document.addEventListener('keydown', function(e){
+        if(e.key === 'Escape' && overlay.classList.contains('show')) closeInfo();
       });
     })();
   </script>
@@ -1162,6 +1213,64 @@
   }
 
   window.addEventListener("wheel", handleWheel, { passive:false });
+
+  /* ------------------------------ */
+  /* TOUCH — iPad (and touch devices generally) never fire "wheel" for an   */
+  /* on-screen swipe, so everything above would silently do nothing. This   */
+  /* reads a vertical swipe and, once it crosses a threshold, funnels it    */
+  /* through the same jumpTo()/nudgeMarquee() calls wheel uses, so wheel,   */
+  /* touch, NEXT and the index dots all stay on one deterministic path      */
+  /* (see jumpTo()'s own notes on why that matters). Deliberately NOT       */
+  /* attached inside the open-tool iframes (unlike wheel, below) -- several */
+  /* tools use touch-drag for their own controls (sliders, canvas), and     */
+  /* hijacking touchmove there would fight with that instead of scrolling.  */
+  /* ------------------------------ */
+  let touchStartY = null;
+  let touchLastY  = null;
+
+  function handleTouchStart(e){
+      if(e.touches.length !== 1) return;
+      // let native scroll happen inside the INFO modal (or any future
+      // overlay with scrollable content) instead of hijacking it for
+      // section navigation.
+      if(e.target.closest && e.target.closest(".info-overlay, #tool-overlay")) return;
+      touchStartY = touchLastY = e.touches[0].clientY;
+  }
+
+  function handleTouchMove(e){
+      if(touchStartY === null || e.touches.length !== 1) return;
+      e.preventDefault(); // we drive scrolling ourselves, same as handleWheel
+      const y = e.touches[0].clientY;
+      if(sectionIndex === 0 && !jumping && typeof window.nudgeMarquee === "function"){
+          window.nudgeMarquee((touchLastY - y) * 1.6);
+      }
+      touchLastY = y;
+  }
+
+  function handleTouchEnd(){
+      if(touchStartY === null) return;
+      const totalDelta = touchStartY - touchLastY; // positive = swiped up = next section
+      touchStartY = touchLastY = null;
+      if(jumping) return;
+
+      const SWIPE_THRESHOLD = 60;
+      if(sectionIndex === 0){
+          if(totalDelta > SWIPE_THRESHOLD && typeof window.hasReadMarquee === "function" && window.hasReadMarquee()){
+              jumpTo(sectionIndex + 1);
+          }
+          return;
+      }
+      if(totalDelta > SWIPE_THRESHOLD){
+          jumpTo(sectionIndex + 1);
+      } else if(totalDelta < -SWIPE_THRESHOLD){
+          jumpTo(sectionIndex - 1);
+      }
+  }
+
+  window.addEventListener("touchstart", handleTouchStart, { passive:true });
+  window.addEventListener("touchmove", handleTouchMove, { passive:false });
+  window.addEventListener("touchend", handleTouchEnd, { passive:true });
+  window.addEventListener("touchcancel", handleTouchEnd, { passive:true });
 
   document.getElementById("btn-next").addEventListener("click", ()=>{
       const next = (currentPage + 1) % pages.length;
