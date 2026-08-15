@@ -32,12 +32,64 @@
     /* documentation is only relevant on the landing -- fades out once  */
     /* you've scrolled down into the tool pages, same gating mechanism  */
     /* used for the presenter's own fixed chrome, just inverted.        */
-    body.in-presenter .docs-link{
+    body.in-presenter .docs-link,
+    body.in-presenter .info-toggle,
+    body.in-presenter .info-panel{
       opacity:0;
       pointer-events:none;
     }
     @media(max-width:480px){
       .docs-link{ bottom:14px; right:14px; padding:8px 13px; font-size:11px; }
+    }
+
+    /* INFO — small companion to .docs-link, mirrored to the bottom-left. */
+    /* Toggles a short plain-text blurb about the project directly into   */
+    /* the white space above it -- no card, no overlay, just text.        */
+    .info-toggle{
+      position:fixed;
+      bottom:20px;
+      left:20px;
+      font-size:12px;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      color:#1f130d;
+      opacity:1;
+      z-index:90;
+      font-family:"ABC Favorit", monospace;
+      padding:9px 16px;
+      border:1px solid #1f130d;
+      border-radius:999px;
+      background:#ffffff;
+      cursor:pointer;
+      transition:background .15s ease, color .15s ease, opacity .3s ease;
+    }
+    .info-toggle:hover,
+    .info-toggle.open{
+      background:#2bff00;
+      color:#1f130d;
+      border-color:#1f130d;
+    }
+    .info-panel{
+      position:fixed;
+      bottom:64px;
+      left:20px;
+      max-width:340px;
+      font-size:14px;
+      line-height:1.5;
+      color:#1f130d;
+      z-index:89;
+      opacity:0;
+      transform:translateY(6px);
+      pointer-events:none;
+      transition:opacity .3s ease, transform .3s ease;
+    }
+    .info-panel.open{
+      opacity:1;
+      transform:translateY(0);
+    }
+    @media(max-width:480px){
+      .info-toggle{ bottom:14px; left:14px; padding:8px 13px; font-size:11px; }
+      .info-panel{ left:14px; right:14px; max-width:none; bottom:58px; }
     }
 
     /* hero title -- same structural position as RMDocumentation's hero   */
@@ -308,6 +360,23 @@
   </main>
 
   <a href="https://melinavaldata00.github.io/RMDocumentation/" class="docs-link" target="_blank" rel="noopener">DOCUMENTATION</a>
+
+  <button type="button" class="info-toggle" id="infoToggle" aria-expanded="false" aria-controls="infoPanel">INFO</button>
+  <p class="info-panel" id="infoPanel">
+    This site hosts a set of tools built on OCR and computer-vision systems. They reinterpret and manipulate the text embedded in an image, surfacing how a machine reads — and turning that reading into graphic material.
+  </p>
+  <script>
+    (function(){
+      var btn = document.getElementById('infoToggle');
+      var panel = document.getElementById('infoPanel');
+      if(!btn || !panel) return;
+      btn.addEventListener('click', function(){
+        var open = panel.classList.toggle('open');
+        btn.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    })();
+  </script>
 
   <script src="script.js"></script>
 
