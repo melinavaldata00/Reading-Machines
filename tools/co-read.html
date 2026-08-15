@@ -123,7 +123,7 @@ body {
 }
 #svg-doc { display: block; }
 
-.outline-group { cursor: move; }
+.outline-group { cursor: move; touch-action: none; }
 .outline-group path { fill: none; stroke: #000; vector-effect: non-scaling-stroke; }
 .outline-group rect.hit { fill: transparent; stroke: none; }
 .sel-outline { fill: none; stroke: #c0392b; stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
@@ -143,6 +143,7 @@ body {
 #edit-panel.show { display: block; }
 #edit-panel-handle {
   cursor: move;
+  touch-action: none;
   user-select: none;
   margin: -12px -12px 12px;
   padding: 10px 12px;

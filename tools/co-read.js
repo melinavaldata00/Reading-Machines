@@ -433,7 +433,10 @@ function renderState(st) {
     }
 
     if (S.editMode) {
-      gEl.addEventListener('mousedown', e => startDrag(e, g, gEl));
+      // pointerdown (not mousedown) so this also works with touch on
+      // iPad -- Pointer Events unify mouse/touch/pen into one API instead
+      // of needing separate touch listeners running in parallel.
+      gEl.addEventListener('pointerdown', e => startDrag(e, g, gEl));
       gEl.addEventListener('click', e => e.stopPropagation());
     }
     svgDoc.appendChild(gEl);
@@ -1108,6 +1111,11 @@ function startDrag(e, g, gEl) {
   }
   if (!S.selectedGroups.includes(g)) return; // just toggled off — no drag
 
+  // keep this pointer's events routed to us even once the finger moves
+  // off the original hit target -- without capture, a fast touch drag on
+  // iPad can otherwise "escape" the element and stop delivering moves.
+  if (e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
+
   const scaleX = stage.clientWidth  / S.W;
   const scaleY = stage.clientHeight / S.H;
   dragState = {
@@ -1117,8 +1125,8 @@ function startDrag(e, g, gEl) {
     startX: e.clientX, startY: e.clientY,
     scaleX, scaleY,
   };
-  document.addEventListener('mousemove', onDrag);
-  document.addEventListener('mouseup', endDrag);
+  document.addEventListener('pointermove', onDrag);
+  document.addEventListener('pointerup', endDrag);
 }
 function onDrag(e) {
   if (!dragState) return;
@@ -1134,8 +1142,8 @@ function onDrag(e) {
 }
 function endDrag() {
   dragState = null;
-  document.removeEventListener('mousemove', onDrag);
-  document.removeEventListener('mouseup', endDrag);
+  document.removeEventListener('pointermove', onDrag);
+  document.removeEventListener('pointerup', endDrag);
 }
 
 // ── edit panel: draggable by its header, so it can be moved off the word
@@ -1145,8 +1153,9 @@ function endDrag() {
   const handle = document.getElementById('edit-panel-handle');
   let start = null;
 
-  handle.addEventListener('mousedown', e => {
+  handle.addEventListener('pointerdown', e => {
     e.preventDefault();
+    if (e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
     const parentRect = panel.offsetParent.getBoundingClientRect();
     const rect = panel.getBoundingClientRect();
     // switch from the default left/bottom CSS to an explicit left/top,
@@ -1158,8 +1167,8 @@ function endDrag() {
     panel.style.top    = initTop + 'px';
     panel.style.bottom = 'auto';
     start = { x: e.clientX, y: e.clientY, left: initLeft, top: initTop };
-    document.addEventListener('mousemove', onPanelDrag);
-    document.addEventListener('mouseup', endPanelDrag);
+    document.addEventListener('pointermove', onPanelDrag);
+    document.addEventListener('pointerup', endPanelDrag);
   });
 
   function onPanelDrag(e) {
@@ -1176,8 +1185,8 @@ function endDrag() {
   }
   function endPanelDrag() {
     start = null;
-    document.removeEventListener('mousemove', onPanelDrag);
-    document.removeEventListener('mouseup', endPanelDrag);
+    document.removeEventListener('pointermove', onPanelDrag);
+    document.removeEventListener('pointerup', endPanelDrag);
   }
 })();
 
