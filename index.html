@@ -1240,11 +1240,11 @@
   function handleTouchMove(e){
       if(touchStartY === null || e.touches.length !== 1) return;
       e.preventDefault(); // we drive scrolling ourselves, same as handleWheel
-      const y = e.touches[0].clientY;
-      if(sectionIndex === 0 && !jumping && typeof window.nudgeMarquee === "function"){
-          window.nudgeMarquee((touchLastY - y) * 1.6);
-      }
-      touchLastY = y;
+      // unlike wheel/desktop, touch on the landing text no longer scrubs
+      // the marquee -- on iPad a swipe there should just move straight to
+      // the first tool, so there's nothing to nudge here anymore. Just
+      // track position for the threshold check in handleTouchEnd.
+      touchLastY = e.touches[0].clientY;
   }
 
   function handleTouchEnd(){
@@ -1255,7 +1255,10 @@
 
       const SWIPE_THRESHOLD = 60;
       if(sectionIndex === 0){
-          if(totalDelta > SWIPE_THRESHOLD && typeof window.hasReadMarquee === "function" && window.hasReadMarquee()){
+          // on touch, the landing text isn't scrollable/scrubbable at all --
+          // any upward swipe past the threshold goes straight to the first
+          // tool, no need to have "read" the marquee first like on desktop.
+          if(totalDelta > SWIPE_THRESHOLD){
               jumpTo(sectionIndex + 1);
           }
           return;

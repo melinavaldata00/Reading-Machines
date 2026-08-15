@@ -248,38 +248,17 @@ input[type=range]::-webkit-slider-thumb {
 }
 .num { font-size: 10px; color: var(--text-dim); min-width: 28px; text-align: right; }
 
-/* touch devices (iPad included) get noticeably bigger thumbs/tracks and
-   more vertical room per slider row -- the 8px desktop thumb is a mouse-
-   precision target, way under Apple's own ~44px touch-target guidance, so
-   on a finger it's easy to miss or drag the wrong amount. Gated on
-   "pointer: coarse" so mouse/trackpad use (including a mouse plugged into
-   an iPad) keeps the thin, precise desktop styling untouched. */
+/* touch devices (iPad included) get a bit more room around each slider
+   row so they're easier to tap accurately -- but the thumb/track size
+   itself stays the same as desktop (kept at the original small size on
+   request). Gated on "pointer: coarse" so mouse/trackpad use (including a
+   mouse plugged into an iPad) is unaffected either way. */
 @media (pointer: coarse) {
-  input[type=range],
-  #timeline-slider {
-    height: 6px;
-    border-radius: 3px;
-  }
-  input[type=range]::-webkit-slider-thumb,
-  #timeline-slider::-webkit-slider-thumb {
-    width: 26px; height: 26px;
-  }
-  input[type=range]::-moz-range-thumb,
-  #timeline-slider::-moz-range-thumb {
-    width: 26px; height: 26px;
-    border: none; border-radius: 50%;
-    background: var(--text); cursor: pointer;
-  }
-  input[type=range]::-moz-range-track,
-  #timeline-slider::-moz-range-track {
-    height: 6px; border-radius: 3px; background: var(--text-faint);
-  }
   .slider-row {
     gap: 12px;
     padding: 6px 0;
   }
   .slider-label { min-width: 68px; font-size: 11px; }
-  #timeline-bar { padding: 16px; gap: 16px; }
   /* every other tappable control (buttons, edit-panel drag handle,
      close icons) also gets more breathing room on touch */
   .b { padding: 8px 12px; }
