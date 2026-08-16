@@ -1311,6 +1311,12 @@
       // inside co-read.html's own document, so they're harmless no-ops
       // everywhere else.
       if(e.target.closest && e.target.closest(".outline-group, #edit-panel, input[type=range]")) return;
+      // every tool has its own "how does it work?" guide and image
+      // gallery overlays, scrollable when their content runs long --
+      // without this, a swipe meant to scroll down to the guide's own
+      // close button instead got hijacked as a swipe to close the whole
+      // tool, so the button (and the rest of the text) was unreachable.
+      if(e.target.closest && e.target.closest("#guide-overlay, #gallery-overlay")) return;
       touchStartY = touchLastY = e.touches[0].clientY;
   }
 
