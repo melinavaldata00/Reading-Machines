@@ -105,6 +105,29 @@ input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; width: 8px; height: 8px;
   background: var(--text); border-radius: 50%;
 }
+input[type=range]::-moz-range-thumb {
+  width: 8px; height: 8px;
+  background: var(--text);
+  border: none;
+  border-radius: 50%;
+}
+/* on iPad the 8px thumb is precise-looking but hard to actually grab with a  */
+/* finger -- bump the hit target up on touch only, without going as big as   */
+/* to feel clumsy. desktop mouse/trackpad users never see this.              */
+@media (pointer: coarse){
+  input[type=range]{
+    height: 3px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    width: 15px; height: 15px;
+  }
+  input[type=range]::-moz-range-thumb{
+    width: 15px; height: 15px;
+  }
+  input[type=range]::-moz-range-track{
+    height: 3px; background: var(--text-faint);
+  }
+}
 .num { font-size: 10px; color: var(--text-dim); min-width: 26px; text-align: right; }
 .btn-group { display: flex; flex-direction: row; gap: 12px; }
 .btn-group .b { text-align: left; width: auto; font-size: 12px; }

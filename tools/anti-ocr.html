@@ -206,6 +206,23 @@ input[type=range]::-moz-range-thumb {
   border: none;
   border-radius: 50%;
 }
+/* on iPad the 8px thumb is precise-looking but hard to actually grab with a  */
+/* finger -- bump the hit target up on touch only, without going as big as   */
+/* to feel clumsy. desktop mouse/trackpad users never see this.              */
+@media (pointer: coarse){
+  input[type=range]{
+    height: 3px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    width: 15px; height: 15px;
+  }
+  input[type=range]::-moz-range-thumb{
+    width: 15px; height: 15px;
+  }
+  input[type=range]::-moz-range-track{
+    height: 3px; background: var(--text-faint);
+  }
+}
 
 #prog {
   display: none;
