@@ -124,6 +124,55 @@
       border-color:#1f130d;
     }
 
+    /* Anti Type completion banner -- see the HTML comment above the       */
+    /* markup for why this exists (iPad Safari has no real Notification    */
+    /* API in a plain browser tab). z-index above #tool-overlay's 300 so   */
+    /* it's readable even while a different tool is open full-screen.      */
+    #antiTypeToast{
+      display:none;
+      position:fixed;
+      top:16px;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:400;
+      align-items:center;
+      gap:12px;
+      max-width:min(440px, 92vw);
+      background:#ffffff;
+      border:1px solid #1f130d;
+      border-radius:999px;
+      padding:9px 10px 9px 18px;
+      font-family:"ABC Favorit", monospace;
+      color:#1f130d;
+      box-shadow:0 6px 20px rgba(31,19,13,.2);
+    }
+    #antiTypeToast.show{ display:flex; }
+    #antiTypeToast .att-dot{
+      width:8px; height:8px; border-radius:50%;
+      background:#2bff00; flex-shrink:0;
+    }
+    #antiTypeToast .att-msg{
+      flex:1;
+      font-size:12px;
+      line-height:1.5;
+      letter-spacing:.01em;
+    }
+    #antiTypeToast .att-msg b{ font-weight:400; }
+    #antiTypeToast .att-msg span{ display:block; color:rgba(31,19,13,.6); font-size:11px; }
+    #antiTypeToast button{
+      background:none;
+      border:none;
+      color:#1f130d;
+      font-size:18px;
+      line-height:1;
+      cursor:pointer;
+      padding:6px 8px;
+      flex-shrink:0;
+    }
+    @media(max-width:480px){
+      #antiTypeToast{ top:12px; padding:8px 8px 8px 14px; }
+    }
+
     /* hero title -- same structural position as RMDocumentation's hero   */
     /* (a normal block sitting in the page flow, not fixed/floating), but */
     /* kept deliberately compact: RMDocumentation has a whole page below   */
@@ -428,6 +477,23 @@
       });
     })();
   </script>
+
+  <!-- Anti Type completion banner — the browser Notification API used     -->
+  <!-- below doesn't work at all in a normal Safari tab on iPad (only for  -->
+  <!-- a site installed to the Home Screen on iOS 16.4+), so this is the   -->
+  <!-- notification that actually reaches iPad: a banner in the site's own -->
+  <!-- chrome, sitting above every tool overlay, so it's visible no matter -->
+  <!-- which tool you're looking at when Anti Type finishes in the         -->
+  <!-- background. Stays up until dismissed rather than auto-hiding, so a  -->
+  <!-- glance back at the screen later still catches it.                   -->
+  <div id="antiTypeToast" role="status">
+    <span class="att-dot"></span>
+    <span class="att-msg">
+      <b id="attTitle"></b>
+      <span id="attBody"></span>
+    </span>
+    <button type="button" id="attClose" aria-label="dismiss">×</button>
+  </div>
 
   <script src="script.js"></script>
 
@@ -1234,6 +1300,17 @@
       // overlay with scrollable content) instead of hijacking it for
       // section navigation.
       if(e.target.closest && e.target.closest(".info-overlay, #tool-overlay")) return;
+      // this same handler also runs inside each open tool's iframe (see
+      // attachTouchToFrame below), so swiping over an open tool still
+      // closes it and moves to the next one, same as scrolling already
+      // does on desktop. Reading Loop is the one tool with its own
+      // touch-drag (moving a recognised word/shape) -- a touch starting
+      // on one of its draggable elements, its edit panel, or any slider
+      // must stay entirely that tool's own gesture, or this would
+      // hijack/break the drag mid-swipe. These selectors only exist
+      // inside co-read.html's own document, so they're harmless no-ops
+      // everywhere else.
+      if(e.target.closest && e.target.closest(".outline-group, #edit-panel, input[type=range]")) return;
       touchStartY = touchLastY = e.touches[0].clientY;
   }
 
@@ -1338,15 +1415,37 @@
       document.title = pageTitle;
   }
 
+  const antiTypeToast   = document.getElementById("antiTypeToast");
+  const attTitleEl      = document.getElementById("attTitle");
+  const attBodyEl       = document.getElementById("attBody");
+  const attCloseBtn     = document.getElementById("attClose");
+
+  function showAntiTypeToast(title, body){
+      attTitleEl.textContent = title || "";
+      attBodyEl.textContent  = body  || "";
+      antiTypeToast.classList.add("show");
+  }
+  function hideAntiTypeToast(){
+      antiTypeToast.classList.remove("show");
+  }
+  attCloseBtn.addEventListener("click", hideAntiTypeToast);
+
   window.addEventListener("message", (event)=>{
       if(event.origin !== location.origin) return;
       if(!event.data || event.data.type !== "anti-type-done") return;
 
       const { title, body } = event.data;
 
+      // real system Notifications work where the platform allows them
+      // (desktop, Android) -- but a plain Safari tab on iPad never
+      // supports the Notification API at all, so the on-site banner
+      // below is what actually reaches iPad: it sits above every tool
+      // overlay and stays up until dismissed, so it's seen whenever you
+      // next look at the screen, not just at the instant it fires.
       if(typeof Notification !== "undefined" && Notification.permission === "granted"){
           try { new Notification(title, { body }); } catch(e) {}
       }
+      showAntiTypeToast(title, body);
 
       document.title = "● " + pageTitle;
   });
@@ -1370,6 +1469,27 @@
   }
   toolOverlayFrame.addEventListener("load", ()=> attachWheelToFrame(toolOverlayFrame));
   antiTypeFrame.addEventListener("load", ()=> attachWheelToFrame(antiTypeFrame));
+
+  // touch equivalent of the above -- iPad never fires "wheel", so without
+  // this, swiping while a tool is open did nothing at all (the touch
+  // events fire on the iframe's own document, never reaching the
+  // listeners on this page). Same handlers as the landing/section swipe
+  // navigation, so a swipe over an open tool closes it and moves to the
+  // next section exactly like scrolling already does on desktop --
+  // handleTouchStart's own exclusion list keeps this out of Reading
+  // Loop's way when the swipe is actually a drag on one of its elements.
+  function attachTouchToFrame(frame){
+      try{
+          if(frame.contentWindow){
+              frame.contentWindow.addEventListener("touchstart", handleTouchStart, { passive:true });
+              frame.contentWindow.addEventListener("touchmove", handleTouchMove, { passive:false });
+              frame.contentWindow.addEventListener("touchend", handleTouchEnd, { passive:true });
+              frame.contentWindow.addEventListener("touchcancel", handleTouchEnd, { passive:true });
+          }
+      } catch(err){ /* cross-origin or not yet loaded -- ignore */ }
+  }
+  toolOverlayFrame.addEventListener("load", ()=> attachTouchToFrame(toolOverlayFrame));
+  antiTypeFrame.addEventListener("load", ()=> attachTouchToFrame(antiTypeFrame));
 
   function closeToolOverlay(){
       toolOverlay.classList.remove("show");
