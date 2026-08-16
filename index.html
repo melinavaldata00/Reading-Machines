@@ -1407,6 +1407,17 @@
       toolOverlayTitle.textContent = name;
       toolOverlay.classList.add("show");
       document.getElementById("tool-guide-btn").disabled = false;
+      // iOS Safari treats the very first tap into a freshly-shown iframe as
+      // just shifting keyboard/touch focus there, not as a real tap -- so a
+      // button like "gallery" does nothing on that first tap and needs a
+      // second one to actually register. Proactively focusing the iframe's
+      // own window the moment it's shown means that "wasted" first tap
+      // never happens. (Also re-applied on "load" below, for the case where
+      // this runs before the new document has actually finished loading.)
+      try{
+          const activeFrame = (src === ANTI_TYPE_SRC) ? antiTypeFrame : toolOverlayFrame;
+          if(activeFrame.contentWindow) activeFrame.contentWindow.focus();
+      } catch(err){ /* cross-origin -- ignore */ }
   }
 
   document.getElementById("tool-guide-btn").addEventListener("click", ()=>{
@@ -1496,6 +1507,16 @@
   }
   toolOverlayFrame.addEventListener("load", ()=> attachTouchToFrame(toolOverlayFrame));
   antiTypeFrame.addEventListener("load", ()=> attachTouchToFrame(antiTypeFrame));
+
+  // covers the case where openTool()'s own focus() call (above) ran before
+  // this particular navigation had actually finished loading -- re-applied
+  // here once the new document is truly ready, so the very first tap a
+  // user makes inside it (e.g. on "gallery") is never the wasted one.
+  function focusFrameOnLoad(frame){
+      try{ if(frame.contentWindow) frame.contentWindow.focus(); } catch(err){ /* cross-origin -- ignore */ }
+  }
+  toolOverlayFrame.addEventListener("load", ()=> focusFrameOnLoad(toolOverlayFrame));
+  antiTypeFrame.addEventListener("load", ()=> focusFrameOnLoad(antiTypeFrame));
 
   function closeToolOverlay(){
       toolOverlay.classList.remove("show");
