@@ -107,6 +107,23 @@ body.stage-results #word-input{ font-size: 16px; }
 #word-input:focus { border-bottom-color: var(--text); }
 #word-input::placeholder { color: var(--text-faint); }
 
+/* the iPad on-screen keyboard has no reliable way to close itself while  */
+/* editing a <textarea> (unlike a single-line field, Return just adds a   */
+/* line instead of submitting), and it can sit over controls like "run    */
+/* loop" until it's gone. This gives touch users an explicit, always-     */
+/* reachable way to close it -- desktop never sees it, since there's no   */
+/* on-screen keyboard to dismiss there in the first place.                */
+#word-input-done{
+  display: none;
+  margin: 10px auto 0;
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+@media (pointer: coarse){
+  #word-input-done{ display: inline-block; }
+}
+
 #center-hint{
   margin-top: 8px;
   font-size: 10px;
@@ -375,6 +392,7 @@ body.stage-results #iter-section{ display: block; }
 
   <div id="center-input">
     <textarea id="word-input" rows="3">type here</textarea>
+    <button type="button" class="b" id="word-input-done">✓ done — close keyboard</button>
     <div id="center-hint">run the loop — each letter processed until the machine can no longer read it</div>
   </div>
 
@@ -606,7 +624,16 @@ async function runWithConcurrency(items, limit, worker) {
   });
 }
 
+document.getElementById('word-input-done').addEventListener('click', () => {
+  document.getElementById('word-input').blur();
+});
+
 document.getElementById('btn-run').addEventListener('click', async () => {
+  // belt-and-suspenders: running the loop always closes the keyboard too,
+  // even if it was somehow still focused (e.g. tapped straight from the
+  // keyboard's own suggestion bar) rather than dismissed via the button above.
+  document.getElementById('word-input').blur();
+
   const word = document.getElementById('word-input').value.trim();
   if (!word) return;
   requestNotifyPermission();
