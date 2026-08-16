@@ -135,7 +135,18 @@ body {
 }
 #svg-doc { display: block; }
 
-.outline-group { cursor: move; touch-action: none; }
+.outline-group {
+  cursor: move;
+  touch-action: none;
+  /* words shown as real text (the "show as text" option) are actual SVG
+     <text> nodes -- without this, a touch-drag attempt on one of those
+     can be read by iOS as the start of a text selection (magnifier loupe
+     and all) instead of a drag, which is the other thing that makes
+     dragging feel like it randomly stops responding. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 .outline-group path { fill: none; stroke: #000; vector-effect: non-scaling-stroke; }
 .outline-group rect.hit { fill: transparent; stroke: none; }
 .sel-outline { fill: none; stroke: #c0392b; stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }

@@ -437,14 +437,26 @@ function renderState(st) {
   bg.setAttribute('fill', '#ffffff');
   svgDoc.appendChild(bg);
 
+  // on touch, the hit rect matching a word/shape's exact bounding box is
+  // an easy target to just barely miss with a finger -- especially for
+  // short words -- which is what makes dragging feel like it keeps
+  // "losing" the element instead of moving fluidly. Pad the touch hit
+  // area outward (in SVG user-space, converted from a fixed screen-pixel
+  // amount via the same stage scale used elsewhere) without changing
+  // anything about the visible shape itself. Mouse/trackpad use is
+  // unaffected -- the visible artwork's own precision is already fine
+  // for a pointer.
+  const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const hitPad = isCoarse && stage.clientWidth ? (14 / (stage.clientWidth / S.W)) : 0;
+
   st.groups.forEach(g => {
     const gEl = renderGroupVisual(g);
     groupElMap.set(g, gEl);
 
     const hit = document.createElementNS(SVG_NS, 'rect');
     hit.setAttribute('class', 'hit');
-    hit.setAttribute('x', g.x); hit.setAttribute('y', g.y);
-    hit.setAttribute('width', g.w); hit.setAttribute('height', g.h);
+    hit.setAttribute('x', g.x - hitPad); hit.setAttribute('y', g.y - hitPad);
+    hit.setAttribute('width', g.w + hitPad * 2); hit.setAttribute('height', g.h + hitPad * 2);
     gEl.appendChild(hit);
 
     // selection is drawn as its own dashed marquee rect rather than by
