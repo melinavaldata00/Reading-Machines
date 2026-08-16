@@ -248,12 +248,35 @@ input[type=range]::-webkit-slider-thumb {
 }
 .num { font-size: 10px; color: var(--text-dim); min-width: 28px; text-align: right; }
 
-/* touch devices (iPad included) get a bit more room around each slider
-   row so they're easier to tap accurately -- but the thumb/track size
-   itself stays the same as desktop (kept at the original small size on
-   request). Gated on "pointer: coarse" so mouse/trackpad use (including a
-   mouse plugged into an iPad) is unaffected either way. */
+/* touch devices (iPad included) get a slightly bigger thumb/track than
+   the 8px/1px desktop default, plus more room around each slider row --
+   dialed back from an earlier, much bigger (26px) version that looked
+   too heavy, but the original 8px default turned out to be genuinely
+   hard to grab and drag precisely with a finger, not just visually
+   small. This is a middle ground: noticeably easier to control, still
+   close to the site's own thin, minimal look. Gated on "pointer: coarse"
+   so mouse/trackpad use (including a mouse plugged into an iPad) is
+   unaffected either way. */
 @media (pointer: coarse) {
+  input[type=range],
+  #timeline-slider {
+    height: 3px;
+    border-radius: 1.5px;
+  }
+  input[type=range]::-webkit-slider-thumb,
+  #timeline-slider::-webkit-slider-thumb {
+    width: 15px; height: 15px;
+  }
+  input[type=range]::-moz-range-thumb,
+  #timeline-slider::-moz-range-thumb {
+    width: 15px; height: 15px;
+    border: none; border-radius: 50%;
+    background: var(--text); cursor: pointer;
+  }
+  input[type=range]::-moz-range-track,
+  #timeline-slider::-moz-range-track {
+    height: 3px; border-radius: 1.5px; background: var(--text-faint);
+  }
   .slider-row {
     gap: 12px;
     padding: 6px 0;
